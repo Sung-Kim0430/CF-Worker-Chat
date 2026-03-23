@@ -20,17 +20,27 @@ export default {
     }
 
     if (url.pathname === "/api/chat" && request.method === "POST") {
+      let payload;
+
       try {
-        const payload = normalizeChatRequest(await parseJson(request));
+        payload = normalizeChatRequest(await parseJson(request));
+      } catch (error) {
+        return errorResponse(
+          400,
+          error instanceof Error ? error.message : "Invalid chat request",
+          "invalid_chat_request",
+        );
+      }
 
-        if (!env.AI || typeof env.AI.run !== "function") {
-          return errorResponse(
-            500,
-            "Workers AI binding is missing. Configure the AI binding in wrangler before deploying.",
-            "missing_ai_binding",
-          );
-        }
+      if (!env.AI || typeof env.AI.run !== "function") {
+        return errorResponse(
+          500,
+          "Workers AI binding is missing. Configure the AI binding in wrangler before deploying.",
+          "missing_ai_binding",
+        );
+      }
 
+      try {
         const stream = await env.AI.run(payload.model, {
           messages: buildMessages(payload),
           stream: true,
@@ -38,11 +48,13 @@ export default {
 
         return eventStream(stream);
       } catch (error) {
-        if (error instanceof Error) {
-          return errorResponse(400, error.message, "invalid_chat_request");
-        }
-
-        return errorResponse(500, "Unknown chat request failure", "chat_request_error");
+        return errorResponse(
+          502,
+          error instanceof Error
+            ? error.message
+            : "The selected model failed during inference.",
+          "model_inference_failed",
+        );
       }
     }
 

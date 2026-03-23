@@ -3,14 +3,101 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Workers AI Chat</title>
+    <title>Workers AI 多模型助手</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"
+    ></script>
   </head>
   <body>
-    <main class="app-shell">
-      <h1>Workers AI Chat</h1>
-      <p>项目骨架已创建，界面将在后续任务中完成重构。</p>
+    <div class="page-orb page-orb-left"></div>
+    <div class="page-orb page-orb-right"></div>
+
+    <main class="page-shell">
+      <section class="hero-card panel">
+        <div>
+          <p class="eyebrow">Cloudflare Workers AI</p>
+          <h1 id="appTitle">多模型智能助手</h1>
+          <p id="appSubtitle" class="hero-copy">
+            面向演示、客服和知识问答场景的轻量聊天工作台。
+          </p>
+        </div>
+        <div class="hero-badges">
+          <span class="badge">Streaming</span>
+          <span class="badge">GLM Ready</span>
+          <span class="badge">Multi-Model</span>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <section class="chat-panel panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">Conversation</p>
+              <h2>实时对话</h2>
+            </div>
+            <button id="resetButton" class="ghost-button" type="button">
+              新对话
+            </button>
+          </div>
+
+          <div id="chatStatus" class="status-strip" data-state="idle">
+            准备就绪
+          </div>
+
+          <div id="chatHistory" class="chat-history" aria-live="polite"></div>
+
+          <form id="chatForm" class="composer" autocomplete="off">
+            <label class="composer-label" for="userInput">你的问题</label>
+            <textarea
+              id="userInput"
+              rows="1"
+              placeholder="例如：请帮我整理一段适合售前演示的产品介绍。"
+            ></textarea>
+            <div class="composer-actions">
+              <p id="inputHint" class="input-hint">
+                Enter 发送，Shift+Enter 换行。
+              </p>
+              <button id="sendButton" class="primary-button" type="submit">
+                发送消息
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="side-panel panel">
+          <section class="side-section">
+            <p class="section-label">Model</p>
+            <label class="field-label" for="modelSelect">当前模型</label>
+            <select id="modelSelect" class="model-select"></select>
+            <div id="modelMeta" class="model-meta-card"></div>
+          </section>
+
+          <section class="side-section">
+            <div class="tips-heading">
+              <div>
+                <p class="section-label">Quick Start</p>
+                <h3>推荐提问</h3>
+              </div>
+              <p class="side-note">点击即可填入输入框</p>
+            </div>
+            <div id="starterPrompts" class="prompt-grid"></div>
+          </section>
+
+          <section class="side-section tips-panel">
+            <p class="section-label">Experience Tips</p>
+            <ul class="tips-list">
+              <li>问题越聚焦，响应越快，答案越稳定。</li>
+              <li>长会话会自动裁剪上下文，以保持流畅度。</li>
+              <li>复杂生成任务可以尝试切换到更强模型。</li>
+            </ul>
+          </section>
+        </aside>
+      </section>
     </main>
+
     <script type="module" src="/app.js"></script>
   </body>
 </html>
