@@ -1,5 +1,16 @@
 export const DEFAULT_MODEL = "@cf/zai-org/glm-4.7-flash";
 
+export const APP_CONFIG = {
+  title: "Workers AI 多模型助手",
+  subtitle: "默认适配 GLM-4.7-Flash，适合演示、客服与知识问答场景。",
+  inputHint: "Enter 发送，Shift+Enter 换行。建议一次只问一个重点问题。",
+  starterPrompts: [
+    "请用简洁的方式介绍一下这个产品能帮客户解决什么问题。",
+    "帮我写一段适合售前演示的产品介绍文案。",
+    "请总结 Cloudflare Workers AI 的优势，并给出适用场景。",
+  ],
+};
+
 const MODELS = [
   {
     id: "@cf/zai-org/glm-4.7-flash",
@@ -43,4 +54,12 @@ export function getModelById(modelId) {
 
 export function isSupportedModel(modelId) {
   return getModelById(modelId) !== null;
+}
+
+export function buildClientConfig() {
+  return {
+    ...APP_CONFIG,
+    defaultModel: DEFAULT_MODEL,
+    models: getEnabledModels(),
+  };
 }

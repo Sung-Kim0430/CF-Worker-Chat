@@ -3,6 +3,8 @@ import { DEFAULT_MODEL, isSupportedModel } from "./models.js";
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_CONTENT_LENGTH = 12000;
 const VALID_ROLES = new Set(["user", "assistant"]);
+const SYSTEM_PROMPT =
+  "You are a helpful multilingual assistant. Keep answers clear, direct, and well-formatted in Markdown when useful.";
 
 function normalizeHistoryItem(item) {
   if (!item || typeof item !== "object") {
@@ -59,4 +61,12 @@ export function normalizeChatRequest(body) {
     history,
     model,
   };
+}
+
+export function buildMessages({ history, message }) {
+  return [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...history,
+    { role: "user", content: message },
+  ];
 }
