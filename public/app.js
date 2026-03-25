@@ -165,6 +165,135 @@ function getCurrentControlState() {
   });
 }
 
+function getSessionPhaseLabel() {
+  if (state.session.phase === "sending") {
+    return "生成中";
+  }
+
+  if (state.session.phase === "interrupted") {
+    return state.session.hasPartialContent ? "部分保留" : "请求失败";
+  }
+
+  if (state.session.phase === "complete") {
+    return "已完成";
+  }
+
+  if (state.session.phase === "model-selected") {
+    return "已切换";
+  }
+
+  if (state.session.phase === "reset") {
+    return "已重置";
+  }
+
+  if (state.session.phase === "config-error") {
+    return "配置异常";
+  }
+
+  if (state.session.phase === "booting") {
+    return "加载中";
+  }
+
+  return "待提问";
+}
+
+function getSessionHeadline(modelLabel) {
+  if (state.session.phase === "sending") {
+    return `${modelLabel} 正在生成，本轮已锁定模型，避免中途切换造成回答归属混乱。`;
+  }
+
+  if (state.session.phase === "interrupted" && state.session.hasPartialContent) {
+    return "本轮生成已中断，但已保留部分内容。你可以继续追问，不必从头再来。";
+  }
+
+  if (state.session.phase === "interrupted") {
+    return "本轮请求未成功返回内容，失败提示不会写回后续历史。";
+  }
+
+  if (state.session.phase === "complete") {
+    return "本轮已完成，可继续追问、压缩成售前话术，或切换模型做同题对比。";
+  }
+
+  if (state.session.phase === "model-selected") {
+    return `${modelLabel} 已就绪。建议保持同一个问题不变，再切换模型做能力对比。`;
+  }
+
+  if (state.session.phase === "reset") {
+    return "会话已清空，可以开始新的客户场景或新的产品问题。";
+  }
+
+  if (state.history.length === 0) {
+    return "从一个明确客户问题开始，系统会帮你保持稳定的会话上下文。";
+  }
+
+  return `当前会话已记录 ${state.history.length} 条消息，可围绕同一主题继续深入。`;
+}
+
+function renderSessionSummary() {
+  if (!elements || !state.config) {
+    return;
+  }
+
+  const { tone } = getSessionStatus(state.session);
+  const selectedModel = getSelectedModelMeta();
+  const modelLabel =
+    state.session.modelLabel ||
+    selectedModel?.label ||
+    state.config.defaultModel ||
+    "当前模型";
+  const metaCards = [
+    {
+      label: "当前模型",
+      value: modelLabel,
+      detail: selectedModel?.recommendedFor || "用于当前会话的模型标识",
+      tone: "info",
+    },
+    {
+      label: "会话阶段",
+      value: getSessionPhaseLabel(),
+      detail: state.isSending
+        ? "发送期间自动锁定模型和重置操作"
+        : "当前可以继续提问、切换模型或重置会话",
+      tone,
+    },
+    {
+      label: "上下文条目",
+      value: `${state.history.length} 条消息`,
+      detail:
+        state.history.length > 0
+          ? "后续对话只会回传持久化内容，不会混入瞬时失败"
+          : "首轮提问会从空上下文开始",
+      tone: "neutral",
+    },
+    {
+      label: "历史策略",
+      value: "仅持久内容回传",
+      detail:
+        state.session.phase === "interrupted" && state.session.hasPartialContent
+          ? "本轮已保留部分内容，可继续沿当前上下文追问"
+          : "瞬时失败不会污染下一轮上下文",
+      tone:
+        state.session.phase === "interrupted" && state.session.hasPartialContent
+          ? "warning"
+          : "neutral",
+    },
+  ];
+
+  elements.sessionSummary.dataset.state = tone;
+  elements.sessionHeadline.textContent = getSessionHeadline(modelLabel);
+  elements.sessionMeta.innerHTML = metaCards
+    .map(
+      (item) => `
+        <article class="meta-card" data-tone="${escapeHtml(item.tone)}">
+          <p class="meta-kicker">${escapeHtml(item.label)}</p>
+          <strong class="meta-value">${escapeHtml(item.value)}</strong>
+          <span class="meta-detail">${escapeHtml(item.detail)}</span>
+        </article>
+      `,
+    )
+    .join("");
+}
+
 function updateSessionStatus() {
   if (!elements) {
     return;
@@ -173,6 +302,10 @@ function updateSessionStatus() {
   const { tone, message } = getSessionStatus(state.session);
   elements.chatStatus.dataset.state = tone;
   elements.chatStatus.textContent = message;
+  if (elements.sessionSummary) {
+    elements.sessionSummary.dataset.state = tone;
+  }
+  renderSessionSummary();
 }
 
 function renderShell() {
@@ -183,6 +316,15 @@ function renderShell() {
   elements.appTitle.textContent = state.config.title;
   elements.appSubtitle.textContent = state.config.subtitle;
   elements.inputHint.textContent = state.config.inputHint;
+  elements.workspaceBadges.innerHTML = (state.config.workspaceBadges ?? [])
+    .map(
+      (badge) => `
+        <span class="badge" data-tone="${escapeHtml(badge.tone || "neutral")}">
+          ${escapeHtml(badge.label)}
+        </span>
+      `,
+    )
+    .join("");
 }
 
 function renderModelMeta() {
@@ -295,12 +437,16 @@ function renderMessages() {
               stateLabel: getAssistantMessageStateLabel(message),
             })
           : timeFormatter.format(message.createdAt);
+      const pillClass =
+        message.role === "assistant" && message.streaming
+          ? "message-pill message-pill-live"
+          : "message-pill";
 
       return `
         <article class="message-card ${message.role}${toneClass}">
           <div class="message-meta">
             <span class="message-role">${message.role === "assistant" ? "AI 助手" : "你"}</span>
-            <span class="message-pill">${escapeHtml(pillText)}</span>
+            <span class="${pillClass}">${escapeHtml(pillText)}</span>
           </div>
           <div class="message-content">${messageHtml}</div>
         </article>
@@ -588,8 +734,12 @@ async function initApp() {
     modelSelect: document.getElementById("modelSelect"),
     resetButton: document.getElementById("resetButton"),
     sendButton: document.getElementById("sendButton"),
+    sessionHeadline: document.getElementById("sessionHeadline"),
+    sessionMeta: document.getElementById("sessionMeta"),
+    sessionSummary: document.getElementById("sessionSummary"),
     starterPrompts: document.getElementById("starterPrompts"),
     userInput: document.getElementById("userInput"),
+    workspaceBadges: document.getElementById("workspaceBadges"),
   };
 
   bindEvents();

@@ -16,82 +16,113 @@
     <div class="page-orb page-orb-right"></div>
 
     <main class="page-shell">
-      <section class="hero-card panel">
-        <div>
+      <section id="workspaceHeader" class="workspace-header panel">
+        <div class="workspace-header-main">
           <p class="eyebrow">Cloudflare Workers AI</p>
           <h1 id="appTitle">多模型智能助手</h1>
           <p id="appSubtitle" class="hero-copy">
-            面向演示、客服和知识问答场景的轻量聊天工作台。
+            面向演示、客服和知识问答场景的平衡型 AI 工作台。
           </p>
         </div>
-        <div class="hero-badges">
-          <span class="badge">Streaming</span>
-          <span class="badge">GLM Ready</span>
-          <span class="badge">Multi-Model</span>
+        <div class="workspace-header-side">
+          <div class="header-note-card">
+            <p class="section-label">Operator Note</p>
+            <h2>客户演示优先</h2>
+            <p>
+              重点强化模型归属、会话状态和中断保留，让非技术用户也能看懂当前进度。
+            </p>
+          </div>
+          <div id="workspaceBadges" class="header-badges" aria-label="workspace badges"></div>
         </div>
       </section>
 
       <section class="workspace-grid">
-        <section class="chat-panel panel">
+        <section class="conversation-panel panel">
           <div class="panel-heading">
             <div>
-              <p class="section-label">Conversation</p>
-              <h2>实时对话</h2>
+              <p class="section-label">Conversation Desk</p>
+              <h2>对话工作台</h2>
             </div>
-            <button id="resetButton" class="ghost-button" type="button">
-              新对话
-            </button>
+            <p class="panel-heading-note">先稳住状态，再做多模型比较。</p>
           </div>
 
-          <div id="chatStatus" class="status-strip" data-state="idle">
-            准备就绪
-          </div>
+          <section id="sessionSummary" class="session-summary" data-state="idle">
+            <div class="session-summary-copy">
+              <p class="section-label">Session Summary</p>
+              <h3 id="sessionHeadline">准备就绪，可以从一个明确问题开始。</h3>
+              <div
+                id="chatStatus"
+                class="status-strip"
+                data-state="idle"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                准备就绪
+              </div>
+            </div>
+            <div id="sessionMeta" class="session-meta"></div>
+          </section>
 
           <div id="chatHistory" class="chat-history" aria-live="polite"></div>
 
           <form id="chatForm" class="composer" autocomplete="off">
-            <label class="composer-label" for="userInput">你的问题</label>
+            <div class="composer-top">
+              <label class="composer-label" for="userInput">你的问题</label>
+              <p class="composer-note">建议一次只聚焦一个客户目标或一个产出要求。</p>
+            </div>
             <textarea
               id="userInput"
               rows="1"
               placeholder="例如：请帮我整理一段适合售前演示的产品介绍。"
             ></textarea>
-            <div class="composer-actions">
-              <p id="inputHint" class="input-hint">
-                Enter 发送，Shift+Enter 换行。
-              </p>
-              <button id="sendButton" class="primary-button" type="submit">
-                发送消息
-              </button>
+            <div id="composerActions" class="composer-actions">
+              <div class="composer-hints">
+                <p id="inputHint" class="input-hint">
+                  Enter 发送，Shift+Enter 换行。
+                </p>
+                <p class="composer-subhint">
+                  发送期间会锁定模型，避免一轮回答中途切换造成归属混乱。
+                </p>
+              </div>
+              <div class="composer-buttons">
+                <button id="resetButton" class="ghost-button" type="button">
+                  清空会话
+                </button>
+                <button id="sendButton" class="primary-button" type="submit">
+                  <span>发送消息</span>
+                  <small>Enter</small>
+                </button>
+              </div>
             </div>
           </form>
         </section>
 
-        <aside class="side-panel panel">
-          <section class="side-section">
+        <aside class="operator-panel">
+          <section class="operator-card panel">
             <p class="section-label">Model</p>
             <label class="field-label" for="modelSelect">当前模型</label>
             <select id="modelSelect" class="model-select"></select>
             <div id="modelMeta" class="model-meta-card"></div>
           </section>
 
-          <section class="side-section">
+          <section class="operator-card panel">
             <div class="tips-heading">
               <div>
                 <p class="section-label">Quick Start</p>
                 <h3>推荐提问</h3>
               </div>
-              <p class="side-note">点击即可填入输入框</p>
+              <p class="side-note">点击后直接填入输入框</p>
             </div>
             <div id="starterPrompts" class="prompt-grid"></div>
           </section>
 
-          <section class="side-section tips-panel">
-            <p class="section-label">Experience Tips</p>
+          <section class="operator-card panel operator-card-emphasis">
+            <p class="section-label">Operator Tips</p>
             <ul class="tips-list">
-              <li>问题越聚焦，响应越快，答案越稳定。</li>
-              <li>长会话会自动裁剪上下文，以保持流畅度。</li>
-              <li>复杂生成任务可以尝试切换到更强模型。</li>
+              <li>先让客户问题落到目标、约束、输出格式三个维度，再发起生成。</li>
+              <li>如果本轮中断，系统会保留已生成内容，但不会把瞬时失败写回后续历史。</li>
+              <li>要做模型对比时，建议保持同一问题不变，再切换模型观察差异。</li>
             </ul>
           </section>
         </aside>
