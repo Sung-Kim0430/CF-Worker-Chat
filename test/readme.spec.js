@@ -15,3 +15,8 @@ test("README documents setup, models, and deployment", () => {
     assert.match(readme, new RegExp(phrase));
   }
 });
+
+test("README mentions the balanced workspace experience", () => {
+  const readme = fs.readFileSync("README.md", "utf8");
+  assert.match(readme, /balanced workspace/i);
+});

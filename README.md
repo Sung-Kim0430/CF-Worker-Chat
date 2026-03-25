@@ -1,6 +1,6 @@
 # CF Worker Chat
 
-一个基于 Cloudflare Workers AI 的多模型聊天应用，默认适配 `GLM-4.7-Flash`，同时保留扩展更多聊天模型的能力。项目重点不是“最小 demo”，而是更接近可直接演示给客户的产品雏形：界面更完整，流式体验更清晰，配置和代码结构也更适合后续维护。
+一个基于 Cloudflare Workers AI 的多模型聊天应用，默认适配 `GLM-4.7-Flash`，同时保留扩展更多聊天模型的能力。项目重点不是“最小 demo”，而是更接近可直接演示给客户的产品雏形：它现在更像一个 balanced workspace，而不是一个只有输入框和消息列表的简单聊天页。
 
 ## 特性
 
@@ -8,8 +8,26 @@
 - 支持多模型切换，当前内置 3 个 Workers AI 聊天模型
 - Worker 内通过 `env.AI.run(...)` 直接调用 Workers AI
 - 提供 `/api/config` 运行时配置接口，前端可按配置渲染标题、模型和推荐问题
+- 提供更清晰的 balanced workspace 布局：顶部工作台概览、会话摘要区、对话区和操作侧栏分工明确
 - 流式响应体验更平滑，适合售前演示、客服问答和知识问答场景
+- 中断后的部分回答会被保留，瞬时失败不会污染下一轮上下文
+- 每轮助手消息会明确标出发起时模型，避免在演示时出现“这段回答到底是谁生成的”这类混淆
 - 标准 Cloudflare Worker 工程结构，便于继续扩展鉴权、日志、持久化和知识库能力
+
+## Balanced Workspace 体验
+
+当前前端不再把所有信息都堆在同一块区域里，而是拆成更适合客户演示和操作说明的几个层次：
+
+- `workspace header`
+  展示当前产品定位和 runtime badges，例如 Streaming、GLM Ready、Multi-Model。
+- `session summary`
+  在消息区上方显示当前模型、会话阶段、上下文条目数和历史策略，方便用户快速确认“现在是什么状态”。
+- `conversation desk`
+  聚焦当前问答内容，保留对流式生成、中断提示和 Markdown 输出的支持。
+- `operator rail`
+  放置模型选择、模型说明、推荐提问和操作提示，减少主对话区的干扰。
+
+这套 balanced workspace 设计的核心目的，是降低客户演示时的几个常见痛点：模型归属不清、状态变化不明显、失败信息污染后续上下文，以及移动端信息层级过于拥挤。
 
 ## 内置模型
 
@@ -33,6 +51,9 @@
 .
 ├─ public/
 │  ├─ index.html
+│  ├─ lib/
+│  │  ├─ chat-flow.js
+│  │  └─ ui-state.js
 │  ├─ styles.css
 │  └─ app.js
 ├─ src/
@@ -44,9 +65,11 @@
 │     └─ static.js
 ├─ test/
 │  ├─ chat-route.spec.js
+│  ├─ chat-flow.spec.js
 │  ├─ chat-validation.spec.js
 │  ├─ config-endpoint.spec.js
 │  ├─ frontend-state.spec.js
+│  ├─ layout-contract.spec.js
 │  ├─ models.spec.js
 │  ├─ project-structure.spec.js
 │  └─ readme.spec.js
@@ -65,6 +88,15 @@
   接收用户消息、历史消息和模型选择，调用 Workers AI 并把流式结果返回给前端
 
 前端不会写死模型和标题，而是先请求 `/api/config`，再动态渲染页面。这能让你后续更容易做多场景复用。
+
+浏览器侧逻辑也做了更清晰的拆分：
+
+- `public/lib/chat-flow.js`
+  负责 SSE block 解析、尾部 buffer 收口、请求历史过滤和失败保留逻辑。
+- `public/lib/ui-state.js`
+  负责控件禁用、会话状态文案和消息标签格式化。
+- `public/app.js`
+  只作为页面协调层，处理渲染、事件绑定和请求发起。
 
 ## 前置要求
 
