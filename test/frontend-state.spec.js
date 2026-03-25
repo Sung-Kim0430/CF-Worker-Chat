@@ -106,6 +106,63 @@ test("enhanceRenderedCodeBlocks falls back to auto-detect when fenced code omits
   assert.match(html, /hljs-built_in/);
 });
 
+test("enhanceRenderedCodeBlocks marks long fenced code blocks as collapsible with a friendly label", () => {
+  const lines = Array.from({ length: 14 }, (_, index) => `const row${index + 1} = ${index + 1};`).join("\n");
+  const html = app.enhanceRenderedCodeBlocks(
+    `<pre><code class="language-tsx">${lines}</code></pre>`,
+    {
+      getLanguage(language) {
+        return language === "tsx" ? {} : null;
+      },
+      highlight(code, { language }) {
+        return {
+          language,
+          value: code,
+        };
+      },
+      highlightAuto(code) {
+        return {
+          language: "plaintext",
+          value: code,
+        };
+      },
+    },
+  );
+
+  assert.match(html, /data-collapsible="true"/);
+  assert.match(html, /data-expanded="false"/);
+  assert.match(html, /code-toggle-button/);
+  assert.match(html, /展开/);
+  assert.match(html, /TSX \/ React/);
+});
+
+test("enhanceRenderedCodeBlocks keeps short fenced code blocks uncluttered", () => {
+  const html = app.enhanceRenderedCodeBlocks(
+    '<pre><code class="language-bash">echo "hello"\npwd</code></pre>',
+    {
+      getLanguage(language) {
+        return language === "bash" ? {} : null;
+      },
+      highlight(code, { language }) {
+        return {
+          language,
+          value: code,
+        };
+      },
+      highlightAuto(code) {
+        return {
+          language: "plaintext",
+          value: code,
+        };
+      },
+    },
+  );
+
+  assert.match(html, /data-collapsible="false"/);
+  assert.doesNotMatch(html, /code-toggle-button/);
+  assert.match(html, /Bash/);
+});
+
 test("buildAssistantContentPayload enhances completed fenced code blocks without affecting streaming mode", () => {
   const previousMarked = globalThis.marked;
   const previousPurify = globalThis.DOMPurify;

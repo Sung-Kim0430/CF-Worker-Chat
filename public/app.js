@@ -162,6 +162,9 @@ export function extractCodeLanguage(classNames = "") {
   return match ? match[1].toLowerCase() : "";
 }
 
+const CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 12;
+const CODE_BLOCK_PREVIEW_LINES = 10;
+
 function normalizeCodeLanguageLabel(language = "") {
   const normalized = String(language || "").toLowerCase();
 
@@ -172,32 +175,47 @@ function normalizeCodeLanguageLabel(language = "") {
     cs: "C#",
     css: "CSS",
     go: "Go",
+    graphql: "GraphQL",
     html: "HTML",
+    http: "HTTP",
+    ini: "INI",
     java: "Java",
     javascript: "JavaScript",
     js: "JavaScript",
     json: "JSON",
-    jsx: "JSX",
+    jsx: "JSX / React",
     markdown: "Markdown",
     md: "Markdown",
     php: "PHP",
     plaintext: "Plain Text",
+    powershell: "PowerShell",
+    ps1: "PowerShell",
     py: "Python",
     python: "Python",
     rb: "Ruby",
+    regex: "Regex",
     rs: "Rust",
     ruby: "Ruby",
     rust: "Rust",
     sh: "Shell",
     shell: "Shell",
+    shellscript: "Shell",
+    svelte: "Svelte",
     sql: "SQL",
     swift: "Swift",
+    text: "Text",
+    toml: "TOML",
     ts: "TypeScript",
-    tsx: "TSX",
+    tsx: "TSX / React",
     typescript: "TypeScript",
+    txt: "Text",
+    vue: "Vue",
     xml: "XML",
     yaml: "YAML",
     yml: "YAML",
+    zsh: "Shell",
+    dockerfile: "Dockerfile",
+    diff: "Diff",
   };
 
   if (labels[normalized]) {
@@ -217,6 +235,10 @@ function renderCodeLineNumbers(rawCode = "") {
   const lineCount = Math.max(rawCode.split("\n").length, 1);
 
   return Array.from({ length: lineCount }, (_, index) => `<span>${index + 1}</span>`).join("");
+}
+
+function getCodeBlockLineCount(rawCode = "") {
+  return Math.max(String(rawCode || "").split("\n").length, 1);
 }
 
 function highlightCode(rawCode, explicitLanguage, highlighter = globalThis.hljs) {
@@ -257,17 +279,31 @@ function buildCodeBlockHtml({
   highlightedHtml = "",
   language = "",
 } = {}) {
+  const lineCount = getCodeBlockLineCount(rawCode);
+  const isCollapsible = lineCount > CODE_BLOCK_COLLAPSE_LINE_THRESHOLD;
   const normalizedLanguage = String(language || "").toLowerCase();
   const languageLabel = normalizeCodeLanguageLabel(normalizedLanguage);
   const languageClass = normalizedLanguage
     ? ` language-${escapeHtml(normalizedLanguage)}`
     : "";
+  const toggleButton = isCollapsible
+    ? `<button class="code-toggle-button" type="button" aria-expanded="false">展开</button>`
+    : "";
 
   return `
-    <div class="code-block" data-language="${escapeHtml(normalizedLanguage || "plain")}">
+    <div
+      class="code-block"
+      data-language="${escapeHtml(normalizedLanguage || "plain")}"
+      data-collapsible="${isCollapsible}"
+      data-expanded="${isCollapsible ? "false" : "true"}"
+      style="--code-preview-lines: ${CODE_BLOCK_PREVIEW_LINES};"
+    >
       <div class="code-block-toolbar">
         <span class="code-block-language">${escapeHtml(languageLabel)}</span>
-        <button class="code-copy-button" type="button">复制</button>
+        <div class="code-block-actions">
+          ${toggleButton}
+          <button class="code-copy-button" type="button">复制</button>
+        </div>
       </div>
       <div class="code-block-body">
         <div class="code-line-numbers" aria-hidden="true">${renderCodeLineNumbers(rawCode)}</div>
@@ -357,6 +393,27 @@ function isNearBottom(container) {
     container.scrollHeight - container.scrollTop - container.clientHeight <=
     threshold
   );
+}
+
+function updateCodeToggleButtonState(button, expanded) {
+  if (!button) {
+    return;
+  }
+
+  button.textContent = expanded ? "收起" : "展开";
+  button.setAttribute("aria-expanded", String(expanded));
+}
+
+function toggleCodeBlockExpansion(button) {
+  const codeBlock = button?.closest(".code-block");
+
+  if (!codeBlock || codeBlock.dataset.collapsible !== "true") {
+    return;
+  }
+
+  const nextExpanded = codeBlock.dataset.expanded !== "true";
+  codeBlock.dataset.expanded = String(nextExpanded);
+  updateCodeToggleButtonState(button, nextExpanded);
 }
 
 function scheduleMessageRender() {
@@ -1314,6 +1371,13 @@ function bindEvents() {
   });
 
   elements.chatHistory.addEventListener("click", async (event) => {
+    const toggleButton = event.target.closest(".code-toggle-button");
+
+    if (toggleButton) {
+      toggleCodeBlockExpansion(toggleButton);
+      return;
+    }
+
     const button = event.target.closest(".code-copy-button");
 
     if (!button) {
