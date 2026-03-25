@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as app from "../public/app.js";
+import {
+  formatAssistantTurnLabel,
+  getControlState,
+  getSessionStatus,
+} from "../public/lib/ui-state.js";
 
 test("formatModelLabel adds clear speed and cost hints", () => {
   assert.equal(
@@ -70,5 +75,48 @@ test("structured starter prompt cards keep plain prompt text through render and 
       dataset: { prompt: buttonModel.dataPrompt },
     }),
     "帮我写一段适合售前演示的产品介绍文案。",
+  );
+});
+
+test("getControlState locks model and reset controls during generation", () => {
+  assert.deepEqual(getControlState({ isSending: true, hasHistory: true }), {
+    sendDisabled: true,
+    inputDisabled: true,
+    modelDisabled: true,
+    resetDisabled: true,
+  });
+});
+
+test("getSessionStatus labels interrupted partial generations as warnings", () => {
+  assert.deepEqual(
+    getSessionStatus({ phase: "interrupted", hasPartialContent: true }),
+    { tone: "warning", message: "生成已中断，已保留部分内容。" },
+  );
+});
+
+test("formatAssistantTurnLabel keeps request-start model visible for assistant turns", () => {
+  assert.equal(
+    formatAssistantTurnLabel({
+      streaming: true,
+      modelLabel: "GLM-4.7-Flash",
+      fallbackLabel: "10:30",
+    }),
+    "GLM-4.7-Flash · 生成中",
+  );
+  assert.equal(
+    formatAssistantTurnLabel({
+      streaming: false,
+      modelLabel: "GLM-4.7-Flash",
+      fallbackLabel: "10:30",
+    }),
+    "GLM-4.7-Flash",
+  );
+  assert.equal(
+    formatAssistantTurnLabel({
+      streaming: false,
+      modelLabel: "",
+      fallbackLabel: "10:30",
+    }),
+    "10:30",
   );
 });

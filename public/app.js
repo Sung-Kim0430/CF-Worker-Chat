@@ -1,8 +1,23 @@
+import {
+  applyAssistantFailure,
+  buildRequestHistory,
+  consumeCompleteSseBlocks,
+  consumeFinalSseBlock,
+} from "./lib/chat-flow.js";
+import {
+  formatAssistantTurnLabel,
+  getControlState,
+  getSessionStatus,
+} from "./lib/ui-state.js";
+
 const state = {
   config: null,
   history: [],
   selectedModel: null,
   isSending: false,
+  session: {
+    phase: "booting",
+  },
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -11,7 +26,7 @@ const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 let elements = null;
-let renderQueued = false;
+let messageRenderQueued = false;
 
 export function formatModelLabel(model) {
   return `${model.label} · ${model.speedTag} · ${model.costTag}`;
@@ -62,7 +77,7 @@ export function readStarterPromptSelection(button) {
 }
 
 function escapeHtml(value) {
-  return value
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -110,15 +125,6 @@ function getSelectedModelMeta() {
   );
 }
 
-function setStatus(message, tone = "idle") {
-  if (!elements) {
-    return;
-  }
-
-  elements.chatStatus.dataset.state = tone;
-  elements.chatStatus.textContent = message;
-}
-
 function isNearBottom(container) {
   const threshold = 140;
   return (
@@ -127,15 +133,15 @@ function isNearBottom(container) {
   );
 }
 
-function scheduleRender() {
-  if (renderQueued || !elements) {
+function scheduleMessageRender() {
+  if (messageRenderQueued || !elements) {
     return;
   }
 
-  renderQueued = true;
+  messageRenderQueued = true;
   requestAnimationFrame(() => {
-    renderQueued = false;
-    renderApp();
+    messageRenderQueued = false;
+    renderMessages();
   });
 }
 
@@ -149,6 +155,34 @@ function autoResizeTextarea() {
     elements.userInput.scrollHeight,
     180,
   )}px`;
+}
+
+function getCurrentControlState() {
+  return getControlState({
+    isSending: state.isSending,
+    hasHistory: state.history.length > 0,
+    hasInput: Boolean(elements?.userInput?.value.trim()),
+  });
+}
+
+function updateSessionStatus() {
+  if (!elements) {
+    return;
+  }
+
+  const { tone, message } = getSessionStatus(state.session);
+  elements.chatStatus.dataset.state = tone;
+  elements.chatStatus.textContent = message;
+}
+
+function renderShell() {
+  if (!elements || !state.config) {
+    return;
+  }
+
+  elements.appTitle.textContent = state.config.title;
+  elements.appSubtitle.textContent = state.config.subtitle;
+  elements.inputHint.textContent = state.config.inputHint;
 }
 
 function renderModelMeta() {
@@ -173,13 +207,14 @@ function renderModelMeta() {
 
 function renderPromptCards() {
   const prompts = state.config?.starterPrompts ?? [];
+  const disabledAttribute = state.isSending ? " disabled" : "";
 
   elements.starterPrompts.innerHTML = prompts
     .map((prompt, index) => {
       const promptButton = buildStarterPromptButtonModel(prompt, index);
 
       return `
-        <button class="prompt-button" type="button" data-prompt="${escapeHtml(promptButton.dataPrompt)}">
+        <button class="prompt-button" type="button" data-prompt="${escapeHtml(promptButton.dataPrompt)}"${disabledAttribute}>
           <strong>${escapeHtml(promptButton.title)}</strong>
           <span>${escapeHtml(promptButton.description)}</span>
         </button>
@@ -188,7 +223,42 @@ function renderPromptCards() {
     .join("");
 }
 
-function renderHistory() {
+function getMessageModelLabel(message) {
+  if (typeof message.modelLabel === "string" && message.modelLabel.trim()) {
+    return message.modelLabel;
+  }
+
+  if (!state.config) {
+    return "AI 助手";
+  }
+
+  return (
+    state.config.models.find((item) => item.id === message.modelId)?.label ??
+    "AI 助手"
+  );
+}
+
+function getAssistantMessageStateLabel(message) {
+  if (message.streaming) {
+    return "生成中";
+  }
+
+  if (message.error && message.failureNote) {
+    return "已中断";
+  }
+
+  if (message.error) {
+    return "请求失败";
+  }
+
+  return "已完成";
+}
+
+function renderMessages() {
+  if (!elements) {
+    return;
+  }
+
   const shouldStick = isNearBottom(elements.chatHistory);
 
   if (state.history.length === 0) {
@@ -207,29 +277,30 @@ function renderHistory() {
 
   elements.chatHistory.innerHTML = state.history
     .map((message) => {
-      const modelMeta =
-        message.role === "assistant" && state.config
-          ? state.config.models.find((item) => item.id === message.modelId)
-          : null;
       const toneClass = message.error ? " error" : "";
+      const noteHtml =
+        message.role === "assistant" && message.failureNote
+          ? `<p><strong>系统提示：</strong>${escapeHtml(message.failureNote)}</p>`
+          : "";
       const messageHtml =
         message.role === "assistant"
-          ? renderMarkdown(message.content)
+          ? `${renderMarkdown(message.content)}${noteHtml}`
           : `<p>${escapeHtml(message.content)}</p>`;
+      const pillText =
+        message.role === "assistant"
+          ? formatAssistantTurnLabel({
+              streaming: message.streaming,
+              modelLabel: getMessageModelLabel(message),
+              fallbackLabel: timeFormatter.format(message.createdAt),
+              stateLabel: getAssistantMessageStateLabel(message),
+            })
+          : timeFormatter.format(message.createdAt);
 
       return `
         <article class="message-card ${message.role}${toneClass}">
           <div class="message-meta">
             <span class="message-role">${message.role === "assistant" ? "AI 助手" : "你"}</span>
-            <span class="message-pill">
-              ${
-                message.streaming
-                  ? '<span class="streaming-dot">生成中</span>'
-                  : escapeHtml(
-                      modelMeta ? modelMeta.label : timeFormatter.format(message.createdAt),
-                    )
-              }
-            </span>
+            <span class="message-pill">${escapeHtml(pillText)}</span>
           </div>
           <div class="message-content">${messageHtml}</div>
         </article>
@@ -260,99 +331,27 @@ function renderModelSelect() {
   }
 }
 
-function renderApp() {
+function renderOperatorPanel() {
   if (!elements || !state.config) {
     return;
   }
 
-  elements.appTitle.textContent = state.config.title;
-  elements.appSubtitle.textContent = state.config.subtitle;
-  elements.inputHint.textContent = state.config.inputHint;
+  const controlState = getCurrentControlState();
   renderModelSelect();
   renderModelMeta();
   renderPromptCards();
-  renderHistory();
-
-  const canSend = !state.isSending && elements.userInput.value.trim().length > 0;
-  elements.sendButton.disabled = !canSend;
-  elements.userInput.disabled = state.isSending;
-  elements.resetButton.disabled = state.isSending || state.history.length === 0;
+  elements.modelSelect.disabled = controlState.modelDisabled;
 }
 
-function extractTextFromPayload(payload) {
-  if (!payload || typeof payload !== "object") {
-    return "";
+function renderComposer() {
+  if (!elements) {
+    return;
   }
 
-  if (payload.error) {
-    const message =
-      typeof payload.error === "string"
-        ? payload.error
-        : payload.error.message || "模型返回了错误事件";
-    throw new Error(message);
-  }
-
-  if (typeof payload.response === "string") {
-    return payload.response;
-  }
-
-  if (typeof payload.output_text === "string") {
-    return payload.output_text;
-  }
-
-  const choice = payload.choices?.[0];
-
-  if (typeof choice?.delta?.content === "string") {
-    return choice.delta.content;
-  }
-
-  if (Array.isArray(choice?.delta?.content)) {
-    return choice.delta.content
-      .map((part) => part?.text ?? "")
-      .join("");
-  }
-
-  if (typeof choice?.message?.content === "string") {
-    return choice.message.content;
-  }
-
-  if (typeof choice?.text === "string") {
-    return choice.text;
-  }
-
-  return "";
-}
-
-function consumeSseBlock(block, assistantMessage) {
-  const data = block
-    .split("\n")
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\n")
-    .trim();
-
-  if (!data) {
-    return false;
-  }
-
-  if (data === "[DONE]") {
-    return true;
-  }
-
-  try {
-    const payload = JSON.parse(data);
-    const text = extractTextFromPayload(payload);
-
-    if (text) {
-      assistantMessage.content += text;
-      scheduleRender();
-    }
-  } catch {
-    assistantMessage.content += data;
-    scheduleRender();
-  }
-
-  return false;
+  const controlState = getCurrentControlState();
+  elements.sendButton.disabled = controlState.sendDisabled;
+  elements.userInput.disabled = controlState.inputDisabled;
+  elements.resetButton.disabled = controlState.resetDisabled;
 }
 
 async function streamAssistantReply(response, assistantMessage) {
@@ -365,7 +364,7 @@ async function streamAssistantReply(response, assistantMessage) {
   if (!contentType.includes("text/event-stream")) {
     const text = await response.text();
     assistantMessage.content = text;
-    scheduleRender();
+    renderMessages();
     return;
   }
 
@@ -380,25 +379,40 @@ async function streamAssistantReply(response, assistantMessage) {
       break;
     }
 
-    buffer += value.replaceAll("\r\n", "\n");
+    const result = consumeCompleteSseBlocks(buffer + value, (text) => {
+      assistantMessage.content += text;
+      scheduleMessageRender();
+    });
+    buffer = result.buffer;
+    completed = result.done;
+  }
 
-    let boundary = buffer.indexOf("\n\n");
-
-    while (boundary !== -1) {
-      const block = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      completed = consumeSseBlock(block, assistantMessage);
-
-      if (completed) {
-        break;
-      }
-
-      boundary = buffer.indexOf("\n\n");
-    }
+  if (!completed) {
+    consumeFinalSseBlock(buffer, (text) => {
+      assistantMessage.content += text;
+      scheduleMessageRender();
+    });
   }
 
   if (!assistantMessage.content.trim()) {
     assistantMessage.content = "模型未返回可显示内容，请尝试换个问题或切换模型。";
+    renderMessages();
+  }
+}
+
+async function readErrorMessage(response) {
+  const fallback = `请求失败（${response.status}）`;
+  const text = await response.text();
+
+  if (!text) {
+    return fallback;
+  }
+
+  try {
+    const payload = JSON.parse(text);
+    return payload.error?.message || text;
+  } catch {
+    return text;
   }
 }
 
@@ -414,10 +428,9 @@ async function sendMessage(messageText) {
   }
 
   const selectedModel = getSelectedModelMeta();
-  const historyForRequest = state.history.map(({ role, content }) => ({
-    role,
-    content,
-  }));
+  const requestModelId = selectedModel?.id || state.selectedModel;
+  const requestModelLabel = selectedModel?.label || "当前模型";
+  const historyForRequest = buildRequestHistory(state.history);
 
   const userMessage = {
     role: "user",
@@ -427,7 +440,8 @@ async function sendMessage(messageText) {
   const assistantMessage = {
     role: "assistant",
     content: "",
-    modelId: selectedModel?.id || state.selectedModel,
+    modelId: requestModelId,
+    modelLabel: requestModelLabel,
     createdAt: Date.now(),
     streaming: true,
     error: false,
@@ -435,10 +449,16 @@ async function sendMessage(messageText) {
 
   state.history.push(userMessage, assistantMessage);
   state.isSending = true;
+  state.session = {
+    phase: "sending",
+    modelLabel: requestModelLabel,
+  };
   elements.userInput.value = "";
   autoResizeTextarea();
-  setStatus(`正在使用 ${selectedModel?.label || "当前模型"} 生成回答...`, "loading");
-  renderApp();
+  renderMessages();
+  renderComposer();
+  renderOperatorPanel();
+  updateSessionStatus();
 
   try {
     const response = await fetch("/api/chat", {
@@ -449,38 +469,36 @@ async function sendMessage(messageText) {
       body: JSON.stringify({
         message: trimmed,
         history: historyForRequest,
-        model: state.selectedModel,
+        model: requestModelId,
       }),
     });
 
     if (!response.ok) {
-      let errorMessage = `请求失败（${response.status}）`;
-
-      try {
-        const payload = await response.json();
-        errorMessage = payload.error?.message || errorMessage;
-      } catch {
-        errorMessage = await response.text();
-      }
-
-      throw new Error(errorMessage);
+      throw new Error(await readErrorMessage(response));
     }
 
     await streamAssistantReply(response, assistantMessage);
     assistantMessage.streaming = false;
-    setStatus("已完成响应，可以继续追问或切换模型。", "idle");
+    state.session = {
+      phase: "complete",
+    };
   } catch (error) {
     assistantMessage.streaming = false;
-    assistantMessage.error = true;
-    assistantMessage.content =
-      error instanceof Error
-        ? `请求未完成：${error.message}`
-        : "请求未完成，请稍后重试。";
-    setStatus("请求失败，请检查配置或切换模型后重试。", "error");
+    applyAssistantFailure(
+      assistantMessage,
+      error instanceof Error ? error.message : "请求未完成，请稍后重试。",
+    );
+    state.session = {
+      phase: "interrupted",
+      hasPartialContent: Boolean(assistantMessage.failureNote),
+    };
   } finally {
     state.isSending = false;
     assistantMessage.streaming = false;
-    renderApp();
+    renderMessages();
+    renderComposer();
+    renderOperatorPanel();
+    updateSessionStatus();
     elements.userInput.focus();
   }
 }
@@ -497,7 +515,8 @@ async function loadConfig() {
   }
 
   state.config = await response.json();
-  state.selectedModel = state.config.defaultModel;
+  state.selectedModel =
+    state.config.defaultModel || state.config.models?.[0]?.id || null;
 }
 
 function bindEvents() {
@@ -508,7 +527,7 @@ function bindEvents() {
 
   elements.userInput.addEventListener("input", () => {
     autoResizeTextarea();
-    renderApp();
+    renderComposer();
   });
 
   elements.userInput.addEventListener("keydown", (event) => {
@@ -520,27 +539,39 @@ function bindEvents() {
 
   elements.modelSelect.addEventListener("change", (event) => {
     state.selectedModel = event.target.value;
-    renderModelMeta();
-    setStatus(`已切换到 ${getSelectedModelMeta()?.label || "当前模型"}`, "idle");
+    state.session = {
+      phase: "model-selected",
+      modelLabel: getSelectedModelMeta()?.label || "当前模型",
+    };
+    renderOperatorPanel();
+    updateSessionStatus();
   });
 
   elements.starterPrompts.addEventListener("click", (event) => {
     const button = event.target.closest("[data-prompt]");
 
-    if (!button) {
+    if (!button || state.isSending) {
       return;
     }
 
     elements.userInput.value = readStarterPromptSelection(button);
     autoResizeTextarea();
-    renderApp();
+    renderComposer();
     elements.userInput.focus();
   });
 
   elements.resetButton.addEventListener("click", () => {
+    if (state.isSending) {
+      return;
+    }
+
     state.history = [];
-    setStatus("已清空当前会话，可以开始新的演示。", "idle");
-    renderApp();
+    state.session = {
+      phase: "reset",
+    };
+    renderMessages();
+    renderComposer();
+    updateSessionStatus();
     elements.userInput.focus();
   });
 }
@@ -563,15 +594,24 @@ async function initApp() {
 
   bindEvents();
   autoResizeTextarea();
-  setStatus("正在加载模型配置...", "loading");
+  updateSessionStatus();
 
   try {
     await loadConfig();
-    renderApp();
-    setStatus("准备就绪，可以直接开始提问。", "idle");
+    renderShell();
+    renderOperatorPanel();
+    renderMessages();
+    renderComposer();
+    state.session = {
+      phase: "ready",
+    };
+    updateSessionStatus();
     elements.userInput.focus();
   } catch (error) {
-    setStatus("配置加载失败，请检查 Worker 和 AI 绑定配置。", "error");
+    state.session = {
+      phase: "config-error",
+    };
+    updateSessionStatus();
     if (elements.chatHistory) {
       elements.chatHistory.innerHTML = `
         <section class="empty-state">
