@@ -17,6 +17,7 @@ CF Worker Chat 是一个基于 Cloudflare Workers AI 的**多模型 AI 对话站
 - 运行时通过 `/api/config` 下发标题、模型目录、featuredModels 和 starter prompts
 - `/api/chat` 支持流式响应和多轮上下文
 - 流式生成时锁定模型，避免本轮回答中途切换造成归属混乱
+- 完成态 fenced code block 支持语言识别、高亮、行号与一键复制
 - 中断后的部分回答会保留，但失败提示不会污染下一轮上下文
 - 输入法组合阶段不会误触发 Enter 发送
 - 样式层包含 `prefers-reduced-motion` 防护，兼顾稳定性与可访问性
@@ -77,7 +78,8 @@ CF Worker Chat 是一个基于 Cloudflare Workers AI 的**多模型 AI 对话站
 │     └─ ui-state.js
 ├─ scripts/
 │  ├─ check-model-catalog.js
-│  └─ dev.js
+│  ├─ dev.js
+│  └─ preview.js
 ├─ docs/
 │  └─ model-maintenance.md
 ├─ src/

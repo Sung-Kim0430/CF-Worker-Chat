@@ -25,6 +25,13 @@ test("index.html exposes the chat-first layout anchors", () => {
   assert.match(html, /skip-link/);
 });
 
+test("index.html loads the syntax highlighting assets for completed fenced code blocks", () => {
+  const html = fs.readFileSync("public/index.html", "utf8");
+
+  assert.match(html, /highlight\.js/i);
+  assert.match(html, /styles\/github-dark|min\.css/i);
+});
+
 test("index.html keeps the shell intentionally minimal without decorative chrome blocks", () => {
   const html = fs.readFileSync("public/index.html", "utf8");
 

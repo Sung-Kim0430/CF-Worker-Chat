@@ -39,6 +39,125 @@ test("buildAssistantContentPayload keeps streaming replies in plain-text mode to
   );
 });
 
+test("extractCodeLanguage reads fenced code language hints from marked output classes", () => {
+  assert.equal(typeof app.extractCodeLanguage, "function");
+
+  assert.equal(app.extractCodeLanguage("language-js"), "js");
+  assert.equal(app.extractCodeLanguage("hljs language-typescript"), "typescript");
+  assert.equal(app.extractCodeLanguage("lang-python"), "python");
+  assert.equal(app.extractCodeLanguage(""), "");
+});
+
+test("enhanceRenderedCodeBlocks adds toolbar, line numbers and explicit-language highlighting", () => {
+  assert.equal(typeof app.enhanceRenderedCodeBlocks, "function");
+
+  const html = app.enhanceRenderedCodeBlocks(
+    '<p>示例</p><pre><code class="language-js">const answer = 42;\nconsole.log(answer);</code></pre>',
+    {
+      getLanguage(language) {
+        return language === "js" ? {} : null;
+      },
+      highlight(code, { language }) {
+        return {
+          language,
+          value: `<span class="hljs-keyword">const</span> answer = 42;\nconsole.log(answer);`,
+        };
+      },
+      highlightAuto(code) {
+        return {
+          language: "plaintext",
+          value: code,
+        };
+      },
+    },
+  );
+
+  assert.match(html, /code-block-toolbar/);
+  assert.match(html, /code-copy-button/);
+  assert.match(html, /code-line-numbers/);
+  assert.match(html, /JavaScript|JS/);
+  assert.match(html, /hljs-keyword/);
+  assert.match(html, />1</);
+  assert.match(html, />2</);
+});
+
+test("enhanceRenderedCodeBlocks falls back to auto-detect when fenced code omits language", () => {
+  assert.equal(typeof app.enhanceRenderedCodeBlocks, "function");
+
+  const html = app.enhanceRenderedCodeBlocks("<pre><code>print(&quot;hi&quot;)\nprint(&quot;bye&quot;)</code></pre>", {
+    getLanguage() {
+      return null;
+    },
+    highlight(code, { language }) {
+      return {
+        language,
+        value: code,
+      };
+    },
+    highlightAuto() {
+      return {
+        language: "python",
+        value: '<span class="hljs-built_in">print</span>("hi")\n<span class="hljs-built_in">print</span>("bye")',
+      };
+    },
+  });
+
+  assert.match(html, /Python/);
+  assert.match(html, /hljs-built_in/);
+});
+
+test("buildAssistantContentPayload enhances completed fenced code blocks without affecting streaming mode", () => {
+  const previousMarked = globalThis.marked;
+  const previousPurify = globalThis.DOMPurify;
+  const previousHljs = globalThis.hljs;
+
+  globalThis.marked = {
+    parse() {
+      return '<pre><code class="language-js">const value = 1;\nconsole.log(value);</code></pre>';
+    },
+  };
+  globalThis.DOMPurify = {
+    sanitize(html) {
+      return html;
+    },
+  };
+  globalThis.hljs = {
+    getLanguage(language) {
+      return language === "js" ? {} : null;
+    },
+    highlight(code, { language }) {
+      return {
+        language,
+        value: `<span class="hljs-keyword">const</span> value = 1;\nconsole.log(value);`,
+      };
+    },
+    highlightAuto(code) {
+      return {
+        language: "plaintext",
+        value: code,
+      };
+    },
+  };
+
+  try {
+    const payload = app.buildAssistantContentPayload({
+      role: "assistant",
+      content: "```js\nconst value = 1;\nconsole.log(value);\n```",
+      streaming: false,
+      failureNote: "",
+    });
+
+    assert.equal(payload.mode, "html");
+    assert.match(payload.html, /code-block-toolbar/);
+    assert.match(payload.html, /code-copy-button/);
+    assert.match(payload.html, /code-line-numbers/);
+  } finally {
+    globalThis.marked = previousMarked;
+    globalThis.DOMPurify = previousPurify;
+    globalThis.hljs = previousHljs;
+  }
+});
+
 
 
 test("getModelCatalogPreviewText exposes hidden-model count and names without clutter", () => {

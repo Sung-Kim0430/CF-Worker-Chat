@@ -148,6 +148,153 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function decodeHtmlEntities(value) {
+  return String(value ?? "")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&amp;", "&");
+}
+
+export function extractCodeLanguage(classNames = "") {
+  const match = String(classNames || "").match(/\b(?:language|lang)-([a-z0-9_+-]+)/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function normalizeCodeLanguageLabel(language = "") {
+  const normalized = String(language || "").toLowerCase();
+
+  const labels = {
+    bash: "Bash",
+    csharp: "C#",
+    cpp: "C++",
+    cs: "C#",
+    css: "CSS",
+    go: "Go",
+    html: "HTML",
+    java: "Java",
+    javascript: "JavaScript",
+    js: "JavaScript",
+    json: "JSON",
+    jsx: "JSX",
+    markdown: "Markdown",
+    md: "Markdown",
+    php: "PHP",
+    plaintext: "Plain Text",
+    py: "Python",
+    python: "Python",
+    rb: "Ruby",
+    rs: "Rust",
+    ruby: "Ruby",
+    rust: "Rust",
+    sh: "Shell",
+    shell: "Shell",
+    sql: "SQL",
+    swift: "Swift",
+    ts: "TypeScript",
+    tsx: "TSX",
+    typescript: "TypeScript",
+    xml: "XML",
+    yaml: "YAML",
+    yml: "YAML",
+  };
+
+  if (labels[normalized]) {
+    return labels[normalized];
+  }
+
+  if (!normalized) {
+    return "代码";
+  }
+
+  return normalized.replace(/(^\w|[-+_]\w)/g, (token) =>
+    token.replace(/[-+_]/g, "").toUpperCase(),
+  );
+}
+
+function renderCodeLineNumbers(rawCode = "") {
+  const lineCount = Math.max(rawCode.split("\n").length, 1);
+
+  return Array.from({ length: lineCount }, (_, index) => `<span>${index + 1}</span>`).join("");
+}
+
+function highlightCode(rawCode, explicitLanguage, highlighter = globalThis.hljs) {
+  const safeFallback = {
+    language: explicitLanguage || "",
+    value: escapeHtml(rawCode),
+  };
+
+  if (!highlighter || typeof highlighter !== "object") {
+    return safeFallback;
+  }
+
+  try {
+    if (
+      explicitLanguage &&
+      typeof highlighter.getLanguage === "function" &&
+      highlighter.getLanguage(explicitLanguage) &&
+      typeof highlighter.highlight === "function"
+    ) {
+      return highlighter.highlight(rawCode, {
+        language: explicitLanguage,
+        ignoreIllegals: true,
+      });
+    }
+
+    if (typeof highlighter.highlightAuto === "function") {
+      return highlighter.highlightAuto(rawCode);
+    }
+  } catch {
+    return safeFallback;
+  }
+
+  return safeFallback;
+}
+
+function buildCodeBlockHtml({
+  rawCode = "",
+  highlightedHtml = "",
+  language = "",
+} = {}) {
+  const normalizedLanguage = String(language || "").toLowerCase();
+  const languageLabel = normalizeCodeLanguageLabel(normalizedLanguage);
+  const languageClass = normalizedLanguage
+    ? ` language-${escapeHtml(normalizedLanguage)}`
+    : "";
+
+  return `
+    <div class="code-block" data-language="${escapeHtml(normalizedLanguage || "plain")}">
+      <div class="code-block-toolbar">
+        <span class="code-block-language">${escapeHtml(languageLabel)}</span>
+        <button class="code-copy-button" type="button">复制</button>
+      </div>
+      <div class="code-block-body">
+        <div class="code-line-numbers" aria-hidden="true">${renderCodeLineNumbers(rawCode)}</div>
+        <pre><code class="hljs${languageClass}">${highlightedHtml}</code></pre>
+      </div>
+    </div>
+  `;
+}
+
+export function enhanceRenderedCodeBlocks(html, highlighter = globalThis.hljs) {
+  return String(html || "").replace(
+    /<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g,
+    (_, attributeSource = "", encodedCode = "") => {
+      const classMatch = attributeSource.match(/\bclass=(["'])(.*?)\1/i);
+      const explicitLanguage = extractCodeLanguage(classMatch?.[2] || "");
+      const rawCode = decodeHtmlEntities(encodedCode).replaceAll("\r\n", "\n");
+      const highlighted = highlightCode(rawCode, explicitLanguage, highlighter);
+
+      return buildCodeBlockHtml({
+        rawCode,
+        highlightedHtml: highlighted?.value || escapeHtml(rawCode),
+        language: highlighted?.language || explicitLanguage,
+      });
+    },
+  );
+}
+
 function fallbackMarkdownToHtml(markdown) {
   const escaped = escapeHtml(markdown).trim();
 
@@ -169,8 +316,10 @@ function renderMarkdown(markdown) {
     const rawHtml = parser?.parse
       ? parser.parse(markdown, { gfm: true, breaks: true })
       : fallbackMarkdownToHtml(markdown);
+    const safeHtml = purifier?.sanitize ? purifier.sanitize(rawHtml) : rawHtml;
+    const enhancedHtml = enhanceRenderedCodeBlocks(safeHtml);
 
-    return purifier?.sanitize ? purifier.sanitize(rawHtml) : rawHtml;
+    return purifier?.sanitize ? purifier.sanitize(enhancedHtml) : enhancedHtml;
   } catch {
     return fallbackMarkdownToHtml(markdown);
   }
@@ -792,6 +941,51 @@ function renderMessages() {
   }
 }
 
+async function copyTextToClipboard(text) {
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.clipboard &&
+    typeof navigator.clipboard.writeText === "function"
+  ) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  if (typeof document === "undefined") {
+    throw new Error("clipboard_unavailable");
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+function updateCopyButtonState(button, nextLabel) {
+  if (!button) {
+    return;
+  }
+
+  clearTimeout(button._copyResetTimer);
+  const baseLabel = button.dataset.baseLabel || button.textContent || "复制";
+
+  button.dataset.baseLabel = baseLabel;
+  button.textContent = nextLabel;
+  button.dataset.copyState = nextLabel;
+
+  if (nextLabel !== baseLabel) {
+    button._copyResetTimer = setTimeout(() => {
+      button.textContent = baseLabel;
+      button.dataset.copyState = "";
+    }, 1800);
+  }
+}
+
 function renderOperatorPanel() {
   if (!elements || !state.config) {
     return;
@@ -1117,6 +1311,28 @@ function bindEvents() {
     renderComposer();
     updateSessionStatus();
     elements.userInput.focus();
+  });
+
+  elements.chatHistory.addEventListener("click", async (event) => {
+    const button = event.target.closest(".code-copy-button");
+
+    if (!button) {
+      return;
+    }
+
+    const codeElement = button.closest(".code-block")?.querySelector("code");
+    const codeText = codeElement?.textContent || "";
+
+    if (!codeText.trim()) {
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(codeText);
+      updateCopyButtonState(button, "已复制");
+    } catch {
+      updateCopyButtonState(button, "复制失败");
+    }
   });
 }
 
