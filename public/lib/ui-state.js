@@ -63,7 +63,7 @@ export function getSessionStatus({
   }
 
   if (phase === "reset") {
-    return { tone: "idle", message: "已清空当前会话，可以开始新的演示。" };
+    return { tone: "idle", message: "已清空当前会话，可以开始新的任务。" };
   }
 
   if (phase === "model-selected") {

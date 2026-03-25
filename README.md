@@ -1,6 +1,6 @@
 # CF Worker Chat
 
-一个基于 Cloudflare Workers AI 的多模型聊天应用，默认适配 `GLM-4.7-Flash`，同时保留扩展更多聊天模型的能力。项目重点不是“最小 demo”，而是更接近可直接演示给客户的产品雏形：它现在更像一个 balanced workspace，而不是一个只有输入框和消息列表的简单聊天页。
+一个基于 Cloudflare Workers AI 的个人 AI Playground，默认适配 `GLM-4.7-Flash`，同时保留扩展更多聊天模型的能力。项目重点不是“最小 demo”，而是一个更接近日常可用的个人 AI 对话入口：打开页面就能开始写作、整理、编码和探索，而不是先面对一套面向企业产品模板的默认措辞。
 
 ## 特性
 
@@ -8,26 +8,27 @@
 - 支持多模型切换，当前内置 3 个 Workers AI 聊天模型
 - Worker 内通过 `env.AI.run(...)` 直接调用 Workers AI
 - 提供 `/api/config` 运行时配置接口，前端可按配置渲染标题、模型和推荐问题
-- 提供更清晰的 balanced workspace 布局：顶部工作台概览、会话摘要区、对话区和操作侧栏分工明确
-- 流式响应体验更平滑，适合售前演示、客服问答和知识问答场景
+- 提供更清晰的 tool-first AI Playground 布局：顶部入口概览、会话摘要区、对话区和侧栏分工明确
+- 流式响应体验更平滑，适合写作、代码方案、总结与个人探索场景
 - 中断后的部分回答会被保留，瞬时失败不会污染下一轮上下文
-- 每轮助手消息会明确标出发起时模型，避免在演示时出现“这段回答到底是谁生成的”这类混淆
+- 每轮助手消息会明确标出发起时模型，避免在多模型切换时出现结果归属混淆
 - 标准 Cloudflare Worker 工程结构，便于继续扩展鉴权、日志、持久化和知识库能力
+- 流式阶段优先补丁更新最后一条 assistant 消息，避免整段重绘带来的页面闪烁
 
-## Balanced Workspace 体验
+## AI Playground 体验
 
-当前前端不再把所有信息都堆在同一块区域里，而是拆成更适合客户演示和操作说明的几个层次：
+当前前端不再把所有信息都堆在同一块区域里，而是拆成更适合个人高频使用的几个层次：
 
 - `workspace header`
-  展示当前产品定位和 runtime badges，例如 Streaming、GLM Ready、Multi-Model。
+  展示当前站点定位和 runtime badges，例如 Streaming、GLM 4.7、AI Playground。
 - `session summary`
   在消息区上方显示当前模型、会话阶段、上下文条目数和历史策略，方便用户快速确认“现在是什么状态”。
-- `conversation desk`
+- `conversation panel`
   聚焦当前问答内容，保留对流式生成、中断提示和 Markdown 输出的支持。
-- `operator rail`
-  放置模型选择、模型说明、推荐提问和操作提示，减少主对话区的干扰。
+- `playground rail`
+  放置模型选择、模型说明、快捷入口和使用提示，减少主对话区干扰。
 
-这套 balanced workspace 设计的核心目的，是降低客户演示时的几个常见痛点：模型归属不清、状态变化不明显、失败信息污染后续上下文，以及移动端信息层级过于拥挤。
+这套 AI Playground 设计的核心目的，是降低个人使用时的几个常见痛点：模型归属不清、状态变化不明显、失败信息污染后续上下文，以及流式回复时的界面闪烁。
 
 ## 内置模型
 
@@ -39,8 +40,8 @@
 
 推荐策略：
 
-- `GLM-4.7-Flash`：默认首选，适合通用演示和多轮对话
-- `Llama 3.1 8B Fast`：更轻量，适合快速响应
+- `GLM-4.7-Flash`：默认首选，适合写作、总结和多轮对话
+- `Llama 3.1 8B Fast`：更轻量，适合快速响应和短文本任务
 - `Llama 3.3 70B Fast`：更强能力，适合更复杂的生成任务
 
 如果你要支持更多模型，优先加入同样适合 `messages + stream: true` 交互模式的 Workers AI 模型，这样前后端逻辑可以保持一致。
@@ -96,6 +97,8 @@
 
 - `public/lib/chat-flow.js`
   负责 SSE block 解析、尾部 buffer 收口、请求历史过滤和失败保留逻辑。
+- `public/lib/chat-render.js`
+  负责判断消息列表是整段重绘还是仅补丁最后一条 assistant 消息。
 - `public/lib/ui-state.js`
   负责控件禁用、会话状态文案和消息标签格式化。
 - `public/app.js`
@@ -175,7 +178,7 @@ await env.AI.run(modelId, {
 - `localhost` / `127.0.0.1` 下，如果 AI 绑定缺失，或 Wrangler 只提供“存在但只能远端运行”的 AI 占位绑定，则 Worker 会返回 mock SSE 流
 - 非本地环境仍然严格依赖真实 `env.AI.run(...)`，推理失败会返回结构化错误
 
-这能避免演示型界面在本地环境因为绑定能力差异直接报 500/502。
+这能避免 AI Playground 在本地环境因为绑定能力差异直接报 500/502。
 
 ## 部署
 
@@ -250,4 +253,4 @@ Workers AI 的模型成本和能力差异明显。你可以结合 Cloudflare 官
 - 定价：<https://developers.cloudflare.com/workers-ai/platform/pricing/>
 - GLM-4.7-Flash：<https://developers.cloudflare.com/workers-ai/models/glm-4.7-flash/>
 
-如果你的目标是客户演示，建议默认使用 `GLM-4.7-Flash`。如果你的目标是成本敏感型场景，可以优先尝试更轻量模型；如果更关注复杂生成质量，再切换到更强模型。
+如果你的目标是个人 AI 入口站点，建议默认使用 `GLM-4.7-Flash`。如果你的目标是成本敏感型场景，可以优先尝试更轻量模型；如果更关注复杂生成质量，再切换到更强模型。

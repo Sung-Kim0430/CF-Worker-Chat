@@ -8,7 +8,7 @@ test("README documents setup, models, and deployment", () => {
   for (const phrase of [
     "GLM-4.7-Flash",
     "Workers AI",
-    "wrangler dev",
+    "npm run dev",
     "wrangler deploy",
     "/api/config",
   ]) {
@@ -16,7 +16,7 @@ test("README documents setup, models, and deployment", () => {
   }
 });
 
-test("README mentions the balanced workspace experience", () => {
+test("README mentions the personal AI playground experience", () => {
   const readme = fs.readFileSync("README.md", "utf8");
-  assert.match(readme, /balanced workspace/i);
+  assert.match(readme, /AI Playground/i);
 });

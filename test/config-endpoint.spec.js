@@ -29,10 +29,14 @@ test("GET /api/config returns structured prompt cards and workspace badges", asy
 
   const body = await response.json();
 
+  assert.equal(body.title, "Personal AI Playground");
+  assert.match(body.subtitle, /个人 AI 入口/);
   assert.ok(Array.isArray(body.workspaceBadges));
   assert.equal(typeof body.workspaceBadges[0]?.label, "string");
   assert.equal(typeof body.workspaceBadges[0]?.tone, "string");
+  assert.equal(body.workspaceBadges.some((badge) => badge.label === "AI Playground"), true);
   assert.equal(typeof body.starterPrompts[0]?.title, "string");
   assert.equal(typeof body.starterPrompts[0]?.description, "string");
   assert.equal(typeof body.starterPrompts[0]?.prompt, "string");
+  assert.equal(body.starterPrompts[0]?.title, "整理思路");
 });

@@ -71,7 +71,7 @@ test("POST /api/chat falls back to a local mock stream when AI binding is unavai
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        message: "请帮我写一段售前演示文案",
+        message: "请帮我整理一个 AI Playground 首页文案",
         history: [],
         model: "@cf/zai-org/glm-4.7-flash",
       }),

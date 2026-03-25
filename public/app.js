@@ -5,6 +5,10 @@ import {
   consumeFinalSseBlock,
 } from "./lib/chat-flow.js";
 import {
+  getHistoryRenderMode,
+  snapshotHistoryForRender,
+} from "./lib/chat-render.js";
+import {
   formatAssistantTurnLabel,
   getControlState,
   getSessionStatus,
@@ -27,6 +31,7 @@ const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
 
 let elements = null;
 let messageRenderQueued = false;
+let lastRenderedHistorySnapshot = [];
 
 export function formatModelLabel(model) {
   return `${model.label} · ${model.speedTag} · ${model.costTag}`;
@@ -199,7 +204,7 @@ function getSessionPhaseLabel() {
 
 function getSessionHeadline(modelLabel) {
   if (state.session.phase === "sending") {
-    return `${modelLabel} 正在生成，本轮已锁定模型，避免中途切换造成回答归属混乱。`;
+    return `${modelLabel} 正在生成，本轮已锁定模型，避免中途切换造成结果归属混乱。`;
   }
 
   if (state.session.phase === "interrupted" && state.session.hasPartialContent) {
@@ -211,19 +216,19 @@ function getSessionHeadline(modelLabel) {
   }
 
   if (state.session.phase === "complete") {
-    return "本轮已完成，可继续追问、压缩成售前话术，或切换模型做同题对比。";
+    return "本轮已完成，可以继续追问、改写输出，或切换模型做同题对比。";
   }
 
   if (state.session.phase === "model-selected") {
-    return `${modelLabel} 已就绪。建议保持同一个问题不变，再切换模型做能力对比。`;
+    return `${modelLabel} 已就绪。建议保持同一个任务不变，再切换模型做结果对比。`;
   }
 
   if (state.session.phase === "reset") {
-    return "会话已清空，可以开始新的客户场景或新的产品问题。";
+    return "会话已清空，可以开始新的问题或新的工作流。";
   }
 
   if (state.history.length === 0) {
-    return "从一个明确客户问题开始，系统会帮你保持稳定的会话上下文。";
+    return "从一个明确任务开始，系统会帮你保持稳定的会话上下文。";
   }
 
   return `当前会话已记录 ${state.history.length} 条消息，可围绕同一主题继续深入。`;
@@ -294,6 +299,90 @@ function renderSessionSummary() {
     .join("");
 }
 
+function renderAssistantContent(message) {
+  const contentHtml = message.streaming
+    ? fallbackMarkdownToHtml(message.content)
+    : renderMarkdown(message.content);
+  const noteHtml = message.failureNote
+    ? `<p><strong>系统提示：</strong>${escapeHtml(message.failureNote)}</p>`
+    : "";
+
+  return `${contentHtml}${noteHtml}`;
+}
+
+function buildMessageCardViewModel(message) {
+  const pillText =
+    message.role === "assistant"
+      ? formatAssistantTurnLabel({
+          streaming: message.streaming,
+          modelLabel: getMessageModelLabel(message),
+          fallbackLabel: timeFormatter.format(message.createdAt),
+          stateLabel: getAssistantMessageStateLabel(message),
+        })
+      : timeFormatter.format(message.createdAt);
+  const pillClass =
+    message.role === "assistant" && message.streaming
+      ? "message-pill message-pill-live"
+      : "message-pill";
+
+  return {
+    cardClass: `message-card ${message.role}${message.error ? " error" : ""}`,
+    roleLabel: message.role === "assistant" ? "AI" : "你",
+    pillClass,
+    pillText,
+    contentHtml:
+      message.role === "assistant"
+        ? renderAssistantContent(message)
+        : `<p>${escapeHtml(message.content)}</p>`,
+  };
+}
+
+function buildMessageCardHtml(message) {
+  const viewModel = buildMessageCardViewModel(message);
+
+  return `
+    <article class="${viewModel.cardClass}" data-streaming="${message.streaming ? "true" : "false"}">
+      <div class="message-meta">
+        <span class="message-role">${viewModel.roleLabel}</span>
+        <span class="${viewModel.pillClass}">${escapeHtml(viewModel.pillText)}</span>
+      </div>
+      <div class="message-content">${viewModel.contentHtml}</div>
+    </article>
+  `;
+}
+
+function patchMessageCard(cardElement, message) {
+  if (!cardElement) {
+    return false;
+  }
+
+  const viewModel = buildMessageCardViewModel(message);
+  const roleElement = cardElement.querySelector(".message-role");
+  const pillElement = cardElement.querySelector(".message-pill");
+  const contentElement = cardElement.querySelector(".message-content");
+
+  if (!roleElement || !pillElement || !contentElement) {
+    return false;
+  }
+
+  cardElement.className = viewModel.cardClass;
+  cardElement.dataset.streaming = message.streaming ? "true" : "false";
+  roleElement.textContent = viewModel.roleLabel;
+  pillElement.className = viewModel.pillClass;
+  pillElement.textContent = viewModel.pillText;
+  contentElement.innerHTML = viewModel.contentHtml;
+
+  return true;
+}
+
+function patchLastAssistantMessage(message) {
+  if (!elements?.chatHistory || message?.role !== "assistant") {
+    return false;
+  }
+
+  return patchMessageCard(elements.chatHistory.lastElementChild, message);
+}
+
 function updateSessionStatus() {
   if (!elements) {
     return;
@@ -343,7 +432,7 @@ function renderModelMeta() {
       <span class="badge">${escapeHtml(model.costTag)}</span>
       <span class="badge">${escapeHtml(`${model.contextWindow.toLocaleString()} ctx`)}</span>
     </div>
-    <p><strong>推荐场景：</strong>${escapeHtml(model.recommendedFor)}</p>
+    <p><strong>适合任务：</strong>${escapeHtml(model.recommendedFor)}</p>
   `;
 }
 
@@ -402,57 +491,44 @@ function renderMessages() {
   }
 
   const shouldStick = isNearBottom(elements.chatHistory);
+  const nextHistorySnapshot = snapshotHistoryForRender(state.history);
+  const renderMode = getHistoryRenderMode(
+    lastRenderedHistorySnapshot,
+    nextHistorySnapshot,
+  );
 
   if (state.history.length === 0) {
     elements.chatHistory.innerHTML = `
       <section class="empty-state">
-        <p class="section-label">Ready To Demo</p>
-        <h3>从一个明确的问题开始，让模型更快进入状态。</h3>
+        <p class="section-label">Ready To Explore</p>
+        <h3>从一个明确任务开始，让模型更快进入状态。</h3>
         <p>
-          你可以先用右侧推荐问题快速启动，也可以直接输入客户痛点、售前场景、
-          产品介绍或知识问答需求。
+          你可以先用右侧快捷入口启动，也可以直接输入想法、代码需求、待整理文本
+          或你正在处理的问题。
         </p>
       </section>
     `;
+    lastRenderedHistorySnapshot = nextHistorySnapshot;
     return;
   }
 
-  elements.chatHistory.innerHTML = state.history
-    .map((message) => {
-      const toneClass = message.error ? " error" : "";
-      const noteHtml =
-        message.role === "assistant" && message.failureNote
-          ? `<p><strong>系统提示：</strong>${escapeHtml(message.failureNote)}</p>`
-          : "";
-      const messageHtml =
-        message.role === "assistant"
-          ? `${renderMarkdown(message.content)}${noteHtml}`
-          : `<p>${escapeHtml(message.content)}</p>`;
-      const pillText =
-        message.role === "assistant"
-          ? formatAssistantTurnLabel({
-              streaming: message.streaming,
-              modelLabel: getMessageModelLabel(message),
-              fallbackLabel: timeFormatter.format(message.createdAt),
-              stateLabel: getAssistantMessageStateLabel(message),
-            })
-          : timeFormatter.format(message.createdAt);
-      const pillClass =
-        message.role === "assistant" && message.streaming
-          ? "message-pill message-pill-live"
-          : "message-pill";
+  if (
+    renderMode === "patch-last-assistant" &&
+    patchLastAssistantMessage(state.history[state.history.length - 1])
+  ) {
+    lastRenderedHistorySnapshot = nextHistorySnapshot;
+    if (shouldStick) {
+      elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+    }
+    return;
+  }
 
-      return `
-        <article class="message-card ${message.role}${toneClass}">
-          <div class="message-meta">
-            <span class="message-role">${message.role === "assistant" ? "AI 助手" : "你"}</span>
-            <span class="${pillClass}">${escapeHtml(pillText)}</span>
-          </div>
-          <div class="message-content">${messageHtml}</div>
-        </article>
-      `;
-    })
-    .join("");
+  if (renderMode === "noop") {
+    return;
+  }
+
+  elements.chatHistory.innerHTML = state.history.map(buildMessageCardHtml).join("");
+  lastRenderedHistorySnapshot = nextHistorySnapshot;
 
   if (shouldStick) {
     elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
