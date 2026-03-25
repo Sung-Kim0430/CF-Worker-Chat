@@ -163,6 +163,79 @@ test("enhanceRenderedCodeBlocks keeps short fenced code blocks uncluttered", () 
   assert.match(html, /Bash/);
 });
 
+test("buildAssistantContentPayload keeps persisted code-block expansion state for completed replies", () => {
+  const previousMarked = globalThis.marked;
+  const previousPurify = globalThis.DOMPurify;
+  const previousHljs = globalThis.hljs;
+
+  globalThis.marked = {
+    parse() {
+      return `<pre><code class="language-tsx">const row1 = 1;
+const row2 = 2;
+const row3 = 3;
+const row4 = 4;
+const row5 = 5;
+const row6 = 6;
+const row7 = 7;
+const row8 = 8;
+const row9 = 9;
+const row10 = 10;
+const row11 = 11;
+const row12 = 12;
+const row13 = 13;</code></pre>`;
+    },
+  };
+  globalThis.DOMPurify = {
+    sanitize(html) {
+      return html;
+    },
+  };
+  globalThis.hljs = {
+    getLanguage(language) {
+      return language === "tsx" ? {} : null;
+    },
+    highlight(code, { language }) {
+      return {
+        language,
+        value: code,
+      };
+    },
+    highlightAuto(code) {
+      return {
+        language: "plaintext",
+        value: code,
+      };
+    },
+  };
+
+  try {
+    const payload = app.buildAssistantContentPayload(
+      {
+        role: "assistant",
+        content: "```tsx\nconst row1 = 1;\nconst row2 = 2;\nconst row3 = 3;\nconst row4 = 4;\nconst row5 = 5;\nconst row6 = 6;\nconst row7 = 7;\nconst row8 = 8;\nconst row9 = 9;\nconst row10 = 10;\nconst row11 = 11;\nconst row12 = 12;\nconst row13 = 13;\n```",
+        streaming: false,
+        failureNote: "",
+        createdAt: 1710000000000,
+      },
+      {
+        expandedCodeBlocks: {
+          "1710000000000:0": true,
+        },
+      },
+    );
+
+    assert.equal(payload.mode, "html");
+    assert.match(payload.html, /data-code-block-key="1710000000000:0"/);
+    assert.match(payload.html, /data-expanded="true"/);
+    assert.match(payload.html, /aria-expanded="true"/);
+    assert.match(payload.html, /收起/);
+  } finally {
+    globalThis.marked = previousMarked;
+    globalThis.DOMPurify = previousPurify;
+    globalThis.hljs = previousHljs;
+  }
+});
+
 test("buildAssistantContentPayload enhances completed fenced code blocks without affecting streaming mode", () => {
   const previousMarked = globalThis.marked;
   const previousPurify = globalThis.DOMPurify;

@@ -18,6 +18,7 @@ import {
 const state = {
   config: null,
   history: [],
+  expandedCodeBlocks: {},
   selectedModel: null,
   isSending: false,
   modelCatalogQuery: "",
@@ -241,6 +242,16 @@ function getCodeBlockLineCount(rawCode = "") {
   return Math.max(String(rawCode || "").split("\n").length, 1);
 }
 
+function getCodeBlockKey(codeBlockKeyPrefix = "", blockIndex = 0) {
+  const normalizedPrefix = String(codeBlockKeyPrefix || "").trim();
+
+  if (!normalizedPrefix) {
+    return "";
+  }
+
+  return `${normalizedPrefix}:${blockIndex}`;
+}
+
 function highlightCode(rawCode, explicitLanguage, highlighter = globalThis.hljs) {
   const safeFallback = {
     language: explicitLanguage || "",
@@ -278,16 +289,22 @@ function buildCodeBlockHtml({
   rawCode = "",
   highlightedHtml = "",
   language = "",
+  codeBlockKey = "",
+  expanded = false,
 } = {}) {
   const lineCount = getCodeBlockLineCount(rawCode);
   const isCollapsible = lineCount > CODE_BLOCK_COLLAPSE_LINE_THRESHOLD;
+  const isExpanded = isCollapsible ? Boolean(expanded) : true;
   const normalizedLanguage = String(language || "").toLowerCase();
   const languageLabel = normalizeCodeLanguageLabel(normalizedLanguage);
   const languageClass = normalizedLanguage
     ? ` language-${escapeHtml(normalizedLanguage)}`
     : "";
   const toggleButton = isCollapsible
-    ? `<button class="code-toggle-button" type="button" aria-expanded="false">展开</button>`
+    ? `<button class="code-toggle-button" type="button" aria-expanded="${isExpanded}">${isExpanded ? "收起" : "展开"}</button>`
+    : "";
+  const codeBlockKeyAttribute = codeBlockKey
+    ? ` data-code-block-key="${escapeHtml(codeBlockKey)}"`
     : "";
 
   return `
@@ -295,7 +312,8 @@ function buildCodeBlockHtml({
       class="code-block"
       data-language="${escapeHtml(normalizedLanguage || "plain")}"
       data-collapsible="${isCollapsible}"
-      data-expanded="${isCollapsible ? "false" : "true"}"
+      data-expanded="${isExpanded}"
+      ${codeBlockKeyAttribute}
       style="--code-preview-lines: ${CODE_BLOCK_PREVIEW_LINES};"
     >
       <div class="code-block-toolbar">
@@ -313,7 +331,9 @@ function buildCodeBlockHtml({
   `;
 }
 
-export function enhanceRenderedCodeBlocks(html, highlighter = globalThis.hljs) {
+export function enhanceRenderedCodeBlocks(html, highlighter = globalThis.hljs, options = {}) {
+  let codeBlockIndex = 0;
+
   return String(html || "").replace(
     /<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g,
     (_, attributeSource = "", encodedCode = "") => {
@@ -321,11 +341,22 @@ export function enhanceRenderedCodeBlocks(html, highlighter = globalThis.hljs) {
       const explicitLanguage = extractCodeLanguage(classMatch?.[2] || "");
       const rawCode = decodeHtmlEntities(encodedCode).replaceAll("\r\n", "\n");
       const highlighted = highlightCode(rawCode, explicitLanguage, highlighter);
+      const codeBlockKey = getCodeBlockKey(
+        options.codeBlockKeyPrefix,
+        codeBlockIndex,
+      );
+      const expanded =
+        codeBlockKey &&
+        Boolean(options.expandedCodeBlocks?.[codeBlockKey]);
+
+      codeBlockIndex += 1;
 
       return buildCodeBlockHtml({
         rawCode,
         highlightedHtml: highlighted?.value || escapeHtml(rawCode),
         language: highlighted?.language || explicitLanguage,
+        codeBlockKey,
+        expanded,
       });
     },
   );
@@ -344,7 +375,7 @@ function fallbackMarkdownToHtml(markdown) {
     .join("");
 }
 
-function renderMarkdown(markdown) {
+function renderMarkdown(markdown, options = {}) {
   const parser = globalThis.marked;
   const purifier = globalThis.DOMPurify;
 
@@ -353,7 +384,7 @@ function renderMarkdown(markdown) {
       ? parser.parse(markdown, { gfm: true, breaks: true })
       : fallbackMarkdownToHtml(markdown);
     const safeHtml = purifier?.sanitize ? purifier.sanitize(rawHtml) : rawHtml;
-    const enhancedHtml = enhanceRenderedCodeBlocks(safeHtml);
+    const enhancedHtml = enhanceRenderedCodeBlocks(safeHtml, globalThis.hljs, options);
 
     return purifier?.sanitize ? purifier.sanitize(enhancedHtml) : enhancedHtml;
   } catch {
@@ -395,6 +426,14 @@ function isNearBottom(container) {
   );
 }
 
+function buildMessageCodeBlockRenderOptions(message, options = {}) {
+  return {
+    codeBlockKeyPrefix:
+      message?.createdAt != null ? String(message.createdAt) : "",
+    expandedCodeBlocks: options.expandedCodeBlocks ?? {},
+  };
+}
+
 function updateCodeToggleButtonState(button, expanded) {
   if (!button) {
     return;
@@ -402,6 +441,19 @@ function updateCodeToggleButtonState(button, expanded) {
 
   button.textContent = expanded ? "收起" : "展开";
   button.setAttribute("aria-expanded", String(expanded));
+}
+
+function setExpandedCodeBlockState(codeBlockKey, expanded) {
+  if (!codeBlockKey) {
+    return;
+  }
+
+  if (expanded) {
+    state.expandedCodeBlocks[codeBlockKey] = true;
+    return;
+  }
+
+  delete state.expandedCodeBlocks[codeBlockKey];
 }
 
 function toggleCodeBlockExpansion(button) {
@@ -414,6 +466,7 @@ function toggleCodeBlockExpansion(button) {
   const nextExpanded = codeBlock.dataset.expanded !== "true";
   codeBlock.dataset.expanded = String(nextExpanded);
   updateCodeToggleButtonState(button, nextExpanded);
+  setExpandedCodeBlockState(codeBlock.dataset.codeBlockKey, nextExpanded);
 }
 
 function scheduleMessageRender() {
@@ -573,7 +626,7 @@ function renderSessionSummary() {
     .join("");
 }
 
-export function buildAssistantContentPayload(message) {
+export function buildAssistantContentPayload(message, options = {}) {
   const noteHtml = message.failureNote
     ? `<p class="message-note"><strong>系统提示：</strong>${escapeHtml(message.failureNote)}</p>`
     : "";
@@ -590,13 +643,18 @@ export function buildAssistantContentPayload(message) {
   return {
     mode: "html",
     text: "",
-    html: renderMarkdown(message.content),
+    html: renderMarkdown(
+      message.content,
+      buildMessageCodeBlockRenderOptions(message, options),
+    ),
     noteHtml,
   };
 }
 
 function renderAssistantContent(message) {
-  const payload = buildAssistantContentPayload(message);
+  const payload = buildAssistantContentPayload(message, {
+    expandedCodeBlocks: state.expandedCodeBlocks,
+  });
 
   if (payload.mode === "text") {
     return {
@@ -1361,6 +1419,7 @@ function bindEvents() {
     }
 
     state.history = [];
+    state.expandedCodeBlocks = {};
     state.session = {
       phase: "reset",
     };
