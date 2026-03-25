@@ -17,6 +17,36 @@ export function formatModelLabel(model) {
   return `${model.label} · ${model.speedTag} · ${model.costTag}`;
 }
 
+export function normalizeStarterPrompt(prompt, index = 0) {
+  if (typeof prompt === "string") {
+    return {
+      title: `示例 ${index + 1}`,
+      description: prompt,
+      prompt,
+    };
+  }
+
+  if (prompt && typeof prompt === "object") {
+    const promptText = typeof prompt.prompt === "string" ? prompt.prompt : "";
+
+    return {
+      title:
+        typeof prompt.title === "string" && prompt.title.trim()
+          ? prompt.title
+          : `示例 ${index + 1}`,
+      description:
+        typeof prompt.description === "string" ? prompt.description : promptText,
+      prompt: promptText,
+    };
+  }
+
+  return {
+    title: `示例 ${index + 1}`,
+    description: "",
+    prompt: "",
+  };
+}
+
 function escapeHtml(value) {
   return value
     .replaceAll("&", "&amp;")
@@ -131,14 +161,16 @@ function renderPromptCards() {
   const prompts = state.config?.starterPrompts ?? [];
 
   elements.starterPrompts.innerHTML = prompts
-    .map(
-      (prompt, index) => `
-        <button class="prompt-button" type="button" data-prompt="${escapeHtml(prompt)}">
-          <strong>示例 ${index + 1}</strong>
-          <span>${escapeHtml(prompt)}</span>
+    .map((prompt, index) => {
+      const promptCard = normalizeStarterPrompt(prompt, index);
+
+      return `
+        <button class="prompt-button" type="button" data-prompt="${escapeHtml(promptCard.prompt)}">
+          <strong>${escapeHtml(promptCard.title)}</strong>
+          <span>${escapeHtml(promptCard.description)}</span>
         </button>
-      `,
-    )
+      `;
+    })
     .join("");
 }
 
