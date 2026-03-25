@@ -47,6 +47,20 @@ export function normalizeStarterPrompt(prompt, index = 0) {
   };
 }
 
+export function buildStarterPromptButtonModel(prompt, index = 0) {
+  const promptCard = normalizeStarterPrompt(prompt, index);
+
+  return {
+    title: promptCard.title,
+    description: promptCard.description,
+    dataPrompt: promptCard.prompt,
+  };
+}
+
+export function readStarterPromptSelection(button) {
+  return button?.dataset?.prompt || "";
+}
+
 function escapeHtml(value) {
   return value
     .replaceAll("&", "&amp;")
@@ -162,12 +176,12 @@ function renderPromptCards() {
 
   elements.starterPrompts.innerHTML = prompts
     .map((prompt, index) => {
-      const promptCard = normalizeStarterPrompt(prompt, index);
+      const promptButton = buildStarterPromptButtonModel(prompt, index);
 
       return `
-        <button class="prompt-button" type="button" data-prompt="${escapeHtml(promptCard.prompt)}">
-          <strong>${escapeHtml(promptCard.title)}</strong>
-          <span>${escapeHtml(promptCard.description)}</span>
+        <button class="prompt-button" type="button" data-prompt="${escapeHtml(promptButton.dataPrompt)}">
+          <strong>${escapeHtml(promptButton.title)}</strong>
+          <span>${escapeHtml(promptButton.description)}</span>
         </button>
       `;
     })
@@ -517,7 +531,7 @@ function bindEvents() {
       return;
     }
 
-    elements.userInput.value = button.dataset.prompt || "";
+    elements.userInput.value = readStarterPromptSelection(button);
     autoResizeTextarea();
     renderApp();
     elements.userInput.focus();

@@ -46,3 +46,29 @@ test("normalizeStarterPrompt keeps legacy string prompts compatible", () => {
     prompt: "请用简洁的方式介绍一下这个产品能帮客户解决什么问题。",
   });
 });
+
+test("structured starter prompt cards keep plain prompt text through render and click helpers", () => {
+  assert.equal(typeof app.buildStarterPromptButtonModel, "function");
+  assert.equal(typeof app.readStarterPromptSelection, "function");
+
+  const buttonModel = app.buildStarterPromptButtonModel(
+    {
+      title: "售前演示",
+      description: "生成一段适合客户沟通的产品介绍",
+      prompt: "帮我写一段适合售前演示的产品介绍文案。",
+    },
+    0,
+  );
+
+  assert.deepEqual(buttonModel, {
+    title: "售前演示",
+    description: "生成一段适合客户沟通的产品介绍",
+    dataPrompt: "帮我写一段适合售前演示的产品介绍文案。",
+  });
+  assert.equal(
+    app.readStarterPromptSelection({
+      dataset: { prompt: buttonModel.dataPrompt },
+    }),
+    "帮我写一段适合售前演示的产品介绍文案。",
+  );
+});
