@@ -2,19 +2,34 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-test("index.html exposes the playground layout anchors", () => {
+test("index.html exposes the chat-first layout anchors", () => {
   const html = fs.readFileSync("public/index.html", "utf8");
 
   for (const id of [
-    "workspaceHeader",
+    "topBar",
+    "chatWorkspace",
     "sessionSummary",
-    "sessionMeta",
     "composerPresets",
     "composerActions",
+    "featuredModelList",
+    "modelCatalogToggle",
+    "modelCatalogPreview",
+    "modelCatalogPanel",
+    "modelSearchInput",
+    "modelCatalogList",
     "starterPrompts",
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+
+  assert.match(html, /skip-link/);
+});
+
+test("index.html keeps the shell intentionally minimal without decorative chrome blocks", () => {
+  const html = fs.readFileSync("public/index.html", "utf8");
+
+  assert.doesNotMatch(html, /page-orb/);
+  assert.doesNotMatch(html, /tips-panel/);
 });
 
 test("styles.css includes reduced-motion safeguards for animated UI", () => {
@@ -23,4 +38,11 @@ test("styles.css includes reduced-motion safeguards for animated UI", () => {
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
   assert.match(styles, /animation:\s*none/);
   assert.match(styles, /transition:\s*none/);
+});
+
+test("styles.css removes decorative streaming animations that can amplify flicker", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.doesNotMatch(styles, /@keyframes rise-in/);
+  assert.doesNotMatch(styles, /@keyframes pulse/);
 });

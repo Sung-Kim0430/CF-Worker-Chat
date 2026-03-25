@@ -7,6 +7,7 @@ test("project exposes required app entry files", () => {
     "package.json",
     "wrangler.jsonc",
     "scripts/dev.js",
+    "scripts/preview.js",
     "src/worker.js",
     "public/index.html",
     "public/styles.css",
@@ -21,6 +22,7 @@ test("package.json exposes stable local and remote dev scripts", () => {
 
   assert.equal(pkg.scripts.dev, "node ./scripts/dev.js local");
   assert.equal(pkg.scripts["dev:remote"], "node ./scripts/dev.js remote");
+  assert.equal(pkg.scripts["dev:ui"], "node ./scripts/preview.js");
 });
 
 test("dev launcher isolates wrangler config and inspector ports", () => {
@@ -31,4 +33,5 @@ test("dev launcher isolates wrangler config and inspector ports", () => {
   assert.match(script, /9230/);
   assert.match(script, /9231/);
   assert.match(script, /--show-interactive-dev-session=false/);
+  assert.match(script, /dev:ui|preview/i);
 });

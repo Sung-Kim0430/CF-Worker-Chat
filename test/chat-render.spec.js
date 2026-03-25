@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   getHistoryRenderMode,
+  getMessagePatchMode,
   snapshotHistoryForRender,
 } from "../public/lib/chat-render.js";
 
@@ -102,4 +103,59 @@ test("getHistoryRenderMode rerenders when an earlier message changes", () => {
   ]);
 
   assert.equal(getHistoryRenderMode(previousHistory, nextHistory), "rerender");
+});
+
+
+test("getMessagePatchMode limits active streaming updates to content-only patches", () => {
+  const previousMessage = snapshotHistoryForRender([
+    {
+      role: "assistant",
+      content: "第一段",
+      modelId: "@cf/zai-org/glm-4.7-flash",
+      modelLabel: "GLM-4.7-Flash",
+      createdAt: 2,
+      streaming: true,
+      error: false,
+    },
+  ])[0];
+
+  const nextMessage = {
+    role: "assistant",
+    content: `第一段
+第二段`,
+    modelId: "@cf/zai-org/glm-4.7-flash",
+    modelLabel: "GLM-4.7-Flash",
+    createdAt: 2,
+    streaming: true,
+    error: false,
+  };
+
+  assert.equal(getMessagePatchMode(previousMessage, nextMessage), "streaming-content-only");
+});
+
+test("getMessagePatchMode falls back to full-card patch when stream state changes", () => {
+  const previousMessage = snapshotHistoryForRender([
+    {
+      role: "assistant",
+      content: "第一段",
+      modelId: "@cf/zai-org/glm-4.7-flash",
+      modelLabel: "GLM-4.7-Flash",
+      createdAt: 2,
+      streaming: true,
+      error: false,
+    },
+  ])[0];
+
+  const nextMessage = {
+    role: "assistant",
+    content: `第一段
+第二段`,
+    modelId: "@cf/zai-org/glm-4.7-flash",
+    modelLabel: "GLM-4.7-Flash",
+    createdAt: 2,
+    streaming: false,
+    error: false,
+  };
+
+  assert.equal(getMessagePatchMode(previousMessage, nextMessage), "replace-card");
 });

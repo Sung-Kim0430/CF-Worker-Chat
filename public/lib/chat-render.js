@@ -67,3 +67,37 @@ export function getHistoryRenderMode(previousHistory = [], nextHistory = []) {
 
   return "patch-last-assistant";
 }
+
+
+export function getMessagePatchMode(previousMessage = {}, nextMessage = {}) {
+  const previous = normalizeMessageSnapshot(previousMessage);
+  const next = normalizeMessageSnapshot(nextMessage);
+
+  if (isSameMessage(previous, next)) {
+    return "noop";
+  }
+
+  if (previous.role !== "assistant" || next.role !== "assistant") {
+    return "replace-card";
+  }
+
+  if (
+    previous.createdAt !== next.createdAt ||
+    previous.modelId !== next.modelId ||
+    previous.modelLabel !== next.modelLabel
+  ) {
+    return "replace-card";
+  }
+
+  if (
+    previous.streaming &&
+    next.streaming &&
+    !previous.error &&
+    !next.error &&
+    previous.failureNote === next.failureNote
+  ) {
+    return "streaming-content-only";
+  }
+
+  return "replace-card";
+}

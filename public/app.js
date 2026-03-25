@@ -6,6 +6,7 @@ import {
 } from "./lib/chat-flow.js";
 import {
   getHistoryRenderMode,
+  getMessagePatchMode,
   snapshotHistoryForRender,
 } from "./lib/chat-render.js";
 import {
@@ -19,6 +20,8 @@ const state = {
   history: [],
   selectedModel: null,
   isSending: false,
+  modelCatalogQuery: "",
+  isCatalogOpen: false,
   session: {
     phase: "booting",
   },
@@ -81,6 +84,61 @@ export function readStarterPromptSelection(button) {
   return button?.dataset?.prompt || "";
 }
 
+export function filterModelCatalog(models = [], query = "") {
+  const normalizedQuery = String(query || "").trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return [...models];
+  }
+
+  return models.filter((model) => {
+    const haystack = [
+      model.id,
+      model.label,
+      model.shortLabel,
+      model.provider,
+      model.family,
+      model.description,
+      model.recommendedFor,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedQuery);
+  });
+}
+
+export function getModelCatalogPreviewText(
+  catalog = [],
+  featuredModels = [],
+  maxNames = 3,
+) {
+  const featuredIds = new Set(featuredModels.map((model) => model.id || model.label));
+  const hiddenModels = catalog.filter(
+    (model) => !featuredIds.has(model.id || model.label),
+  );
+
+  if (hiddenModels.length === 0) {
+    return "当前显示的已经是全部模型。";
+  }
+
+  const previewNames = hiddenModels
+    .slice(0, maxNames)
+    .map((model) => model.label)
+    .filter(Boolean);
+
+  return `还有 ${hiddenModels.length} 个模型：${previewNames.join("、")}`;
+}
+
+export function shouldSubmitFromKeyboardEvent({
+  key = "",
+  shiftKey = false,
+  isComposing = false,
+} = {}) {
+  return key === "Enter" && !shiftKey && !isComposing;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -118,16 +176,30 @@ function renderMarkdown(markdown) {
   }
 }
 
-function getSelectedModelMeta() {
+function getAllModels() {
   if (!state.config) {
-    return null;
+    return [];
   }
 
-  return (
-    state.config.models.find((model) => model.id === state.selectedModel) ??
-    state.config.models[0] ??
-    null
-  );
+  return state.config.modelCatalog ?? state.config.models ?? [];
+}
+
+function getFeaturedModelsForView() {
+  if (!state.config) {
+    return [];
+  }
+
+  const featured = state.config.featuredModels ?? [];
+
+  if (featured.length > 0) {
+    return featured;
+  }
+
+  return getAllModels().slice(0, 4);
+}
+
+function getSelectedModelMeta() {
+  return getAllModels().find((model) => model.id === state.selectedModel) ?? null;
 }
 
 function isNearBottom(container) {
@@ -158,7 +230,7 @@ function autoResizeTextarea() {
   elements.userInput.style.height = "auto";
   elements.userInput.style.height = `${Math.min(
     elements.userInput.scrollHeight,
-    180,
+    220,
   )}px`;
 }
 
@@ -204,34 +276,34 @@ function getSessionPhaseLabel() {
 
 function getSessionHeadline(modelLabel) {
   if (state.session.phase === "sending") {
-    return `${modelLabel} 正在生成，本轮已锁定模型，避免中途切换造成结果归属混乱。`;
+    return `${modelLabel} 生成中，本轮已锁定模型。`;
   }
 
   if (state.session.phase === "interrupted" && state.session.hasPartialContent) {
-    return "本轮生成已中断，但已保留部分内容。你可以继续追问，不必从头再来。";
+    return "生成中断，已保留部分内容。";
   }
 
   if (state.session.phase === "interrupted") {
-    return "本轮请求未成功返回内容，失败提示不会写回后续历史。";
+    return "请求未成功返回内容。";
   }
 
   if (state.session.phase === "complete") {
-    return "本轮已完成，可以继续追问、改写输出，或切换模型做同题对比。";
+    return "回答已完成，可以继续追问。";
   }
 
   if (state.session.phase === "model-selected") {
-    return `${modelLabel} 已就绪。建议保持同一个任务不变，再切换模型做结果对比。`;
+    return `${modelLabel} 已就绪。`;
   }
 
   if (state.session.phase === "reset") {
-    return "会话已清空，可以开始新的问题或新的工作流。";
+    return "会话已清空。";
   }
 
   if (state.history.length === 0) {
-    return "从一个明确任务开始，系统会帮你保持稳定的会话上下文。";
+    return "从一个明确问题开始。";
   }
 
-  return `当前会话已记录 ${state.history.length} 条消息，可围绕同一主题继续深入。`;
+  return `当前会话已记录 ${state.history.length} 条消息。`;
 }
 
 function renderSessionSummary() {
@@ -271,16 +343,12 @@ function renderSessionSummary() {
       tone: "neutral",
     },
     {
-      label: "历史策略",
-      value: "仅持久内容回传",
-      detail:
-        state.session.phase === "interrupted" && state.session.hasPartialContent
-          ? "本轮已保留部分内容，可继续沿当前上下文追问"
-          : "瞬时失败不会污染下一轮上下文",
-      tone:
-        state.session.phase === "interrupted" && state.session.hasPartialContent
-          ? "warning"
-          : "neutral",
+      label: "目录策略",
+      value: `${getFeaturedModelsForView().length} 个常用模型`,
+      detail: state.isCatalogOpen
+        ? `${filterModelCatalog(getAllModels(), state.modelCatalogQuery).length} 个结果可选`
+        : `${getAllModels().length} 个模型已收纳进目录面板`,
+      tone: state.isCatalogOpen ? "info" : "neutral",
     },
   ];
 
@@ -299,15 +367,69 @@ function renderSessionSummary() {
     .join("");
 }
 
-function renderAssistantContent(message) {
-  const contentHtml = message.streaming
-    ? fallbackMarkdownToHtml(message.content)
-    : renderMarkdown(message.content);
+export function buildAssistantContentPayload(message) {
   const noteHtml = message.failureNote
-    ? `<p><strong>系统提示：</strong>${escapeHtml(message.failureNote)}</p>`
+    ? `<p class="message-note"><strong>系统提示：</strong>${escapeHtml(message.failureNote)}</p>`
     : "";
 
-  return `${contentHtml}${noteHtml}`;
+  if (message.streaming) {
+    return {
+      mode: "text",
+      text: message.content || "",
+      html: "",
+      noteHtml,
+    };
+  }
+
+  return {
+    mode: "html",
+    text: "",
+    html: renderMarkdown(message.content),
+    noteHtml,
+  };
+}
+
+function renderAssistantContent(message) {
+  const payload = buildAssistantContentPayload(message);
+
+  if (payload.mode === "text") {
+    return {
+      mode: payload.mode,
+      html: `
+        <div class="message-stream-text">${escapeHtml(payload.text)}</div>
+        ${payload.noteHtml}
+      `,
+    };
+  }
+
+  return {
+    mode: payload.mode,
+    html: `${payload.html}${payload.noteHtml}`,
+  };
+}
+
+function getMessageModelLabel(message) {
+  if (typeof message.modelLabel === "string" && message.modelLabel.trim()) {
+    return message.modelLabel;
+  }
+
+  return getAllModels().find((item) => item.id === message.modelId)?.label ?? "AI 助手";
+}
+
+function getAssistantMessageStateLabel(message) {
+  if (message.streaming) {
+    return "生成中";
+  }
+
+  if (message.error && message.failureNote) {
+    return "已中断";
+  }
+
+  if (message.error) {
+    return "请求失败";
+  }
+
+  return "已完成";
 }
 
 function buildMessageCardViewModel(message) {
@@ -324,15 +446,18 @@ function buildMessageCardViewModel(message) {
     message.role === "assistant" && message.streaming
       ? "message-pill message-pill-live"
       : "message-pill";
+  const assistantContent =
+    message.role === "assistant" ? renderAssistantContent(message) : null;
 
   return {
     cardClass: `message-card ${message.role}${message.error ? " error" : ""}`,
     roleLabel: message.role === "assistant" ? "AI" : "你",
     pillClass,
     pillText,
+    contentMode: assistantContent?.mode || "html",
     contentHtml:
       message.role === "assistant"
-        ? renderAssistantContent(message)
+        ? assistantContent.html
         : `<p>${escapeHtml(message.content)}</p>`,
   };
 }
@@ -346,12 +471,12 @@ function buildMessageCardHtml(message) {
         <span class="message-role">${viewModel.roleLabel}</span>
         <span class="${viewModel.pillClass}">${escapeHtml(viewModel.pillText)}</span>
       </div>
-      <div class="message-content">${viewModel.contentHtml}</div>
+      <div class="message-content${viewModel.contentMode === "text" ? " message-content-streaming" : ""}" data-content-mode="${viewModel.contentMode}">${viewModel.contentHtml}</div>
     </article>
   `;
 }
 
-function patchMessageCard(cardElement, message) {
+function patchMessageCard(cardElement, message, patchMode = "replace-card") {
   if (!cardElement) {
     return false;
   }
@@ -365,22 +490,67 @@ function patchMessageCard(cardElement, message) {
     return false;
   }
 
-  cardElement.className = viewModel.cardClass;
-  cardElement.dataset.streaming = message.streaming ? "true" : "false";
-  roleElement.textContent = viewModel.roleLabel;
-  pillElement.className = viewModel.pillClass;
-  pillElement.textContent = viewModel.pillText;
-  contentElement.innerHTML = viewModel.contentHtml;
+  if (patchMode === "streaming-content-only") {
+    const streamTextElement = contentElement.querySelector(".message-stream-text");
+
+    if (!streamTextElement) {
+      return false;
+    }
+
+    const payload = buildAssistantContentPayload(message);
+    streamTextElement.textContent = payload.text;
+    return true;
+  }
+
+  if (cardElement.className !== viewModel.cardClass) {
+    cardElement.className = viewModel.cardClass;
+  }
+
+  const nextStreamingState = message.streaming ? "true" : "false";
+  if (cardElement.dataset.streaming !== nextStreamingState) {
+    cardElement.dataset.streaming = nextStreamingState;
+  }
+
+  if (roleElement.textContent !== viewModel.roleLabel) {
+    roleElement.textContent = viewModel.roleLabel;
+  }
+
+  if (pillElement.className !== viewModel.pillClass) {
+    pillElement.className = viewModel.pillClass;
+  }
+
+  if (pillElement.textContent !== viewModel.pillText) {
+    pillElement.textContent = viewModel.pillText;
+  }
+
+  const nextContentClass = `message-content${viewModel.contentMode === "text" ? " message-content-streaming" : ""}`;
+  if (contentElement.className !== nextContentClass) {
+    contentElement.className = nextContentClass;
+  }
+
+  if (contentElement.dataset.contentMode !== viewModel.contentMode) {
+    contentElement.dataset.contentMode = viewModel.contentMode;
+  }
+
+  if (contentElement.innerHTML !== viewModel.contentHtml) {
+    contentElement.innerHTML = viewModel.contentHtml;
+  }
 
   return true;
 }
 
-function patchLastAssistantMessage(message) {
+function patchLastAssistantMessage(previousMessageSnapshot, message) {
   if (!elements?.chatHistory || message?.role !== "assistant") {
     return false;
   }
 
-  return patchMessageCard(elements.chatHistory.lastElementChild, message);
+  const patchMode = getMessagePatchMode(previousMessageSnapshot, message);
+
+  if (patchMode === "noop") {
+    return true;
+  }
+
+  return patchMessageCard(elements.chatHistory.lastElementChild, message, patchMode);
 }
 
 function updateSessionStatus() {
@@ -402,6 +572,7 @@ function renderShell() {
     return;
   }
 
+  document.title = state.config.title;
   elements.appTitle.textContent = state.config.title;
   elements.appSubtitle.textContent = state.config.subtitle;
   elements.inputHint.textContent = state.config.inputHint;
@@ -438,16 +609,119 @@ function renderModelMeta() {
     return;
   }
 
+  const capabilityPills = [
+    model.speedTag,
+    model.costTag,
+    model.supportsReasoning ? "Reasoning" : null,
+    model.supportsFunctionCalling ? "Tools" : null,
+    model.supportsStreaming ? "Streaming" : null,
+  ].filter(Boolean);
+
   elements.modelMeta.innerHTML = `
-    <h4>${escapeHtml(model.label)}</h4>
+    <div class="model-meta-header">
+      <div>
+        <p class="meta-kicker">当前模型</p>
+        <h4>${escapeHtml(model.label)}</h4>
+      </div>
+      <span class="model-provider">${escapeHtml(model.provider || "Workers AI")}</span>
+    </div>
     <p>${escapeHtml(model.description)}</p>
     <div class="status-row">
-      <span class="badge">${escapeHtml(model.speedTag)}</span>
-      <span class="badge">${escapeHtml(model.costTag)}</span>
-      <span class="badge">${escapeHtml(`${model.contextWindow.toLocaleString()} ctx`)}</span>
+      ${capabilityPills
+        .map((pill) => `<span class="badge">${escapeHtml(pill)}</span>`)
+        .join("")}
     </div>
-    <p><strong>适合任务：</strong>${escapeHtml(model.recommendedFor)}</p>
+    <dl class="model-facts">
+      <div>
+        <dt>适合任务</dt>
+        <dd>${escapeHtml(model.recommendedFor || "通用对话")}</dd>
+      </div>
+      <div>
+        <dt>模型家族</dt>
+        <dd>${escapeHtml(model.family || model.provider || "通用")}</dd>
+      </div>
+      <div>
+        <dt>上下文</dt>
+        <dd>${escapeHtml(`${Number(model.contextWindow || 0).toLocaleString()} ctx`)}</dd>
+      </div>
+    </dl>
   `;
+}
+
+function renderFeaturedModels() {
+  const featuredModels = getFeaturedModelsForView();
+  const controlState = getCurrentControlState();
+
+  elements.featuredModelList.innerHTML = featuredModels
+    .map((model) => {
+      const isActive = model.id === state.selectedModel;
+
+      return `
+        <button
+          class="model-choice${isActive ? " active" : ""}"
+          type="button"
+          data-model-id="${escapeHtml(model.id)}"
+          aria-pressed="${isActive ? "true" : "false"}"
+          ${controlState.modelDisabled ? "disabled" : ""}
+        >
+          <strong>${escapeHtml(model.label)}</strong>
+          <span>${escapeHtml(model.recommendedFor || formatModelLabel(model))}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function renderModelCatalog() {
+  const controlState = getCurrentControlState();
+  const modelPickerCopy = state.config?.modelPicker ?? {};
+  const allModels = getAllModels();
+  const featuredModels = getFeaturedModelsForView();
+  const filteredModels = filterModelCatalog(allModels, state.modelCatalogQuery);
+  const hiddenModelCount = Math.max(allModels.length - featuredModels.length, 0);
+
+  elements.modelCatalogToggle.disabled = controlState.modelDisabled;
+  elements.modelCatalogToggle.textContent = state.isCatalogOpen
+    ? "收起模型目录"
+    : `查看全部 ${allModels.length} 个模型`;
+  elements.modelCatalogToggle.setAttribute(
+    "aria-expanded",
+    state.isCatalogOpen ? "true" : "false",
+  );
+  elements.modelCatalogToggle.hidden = !state.isCatalogOpen && hiddenModelCount === 0;
+  elements.modelCatalogPanel.hidden = !state.isCatalogOpen;
+  elements.modelCatalogPreview.hidden = state.isCatalogOpen || hiddenModelCount === 0;
+  elements.modelCatalogPreview.textContent = getModelCatalogPreviewText(
+    allModels,
+    featuredModels,
+  );
+  elements.modelSearchInput.placeholder =
+    modelPickerCopy.searchPlaceholder || "搜索模型或提供方";
+  elements.modelSearchInput.value = state.modelCatalogQuery;
+  elements.modelSearchInput.disabled = controlState.modelDisabled;
+
+  elements.modelCatalogList.innerHTML = filteredModels.length
+    ? filteredModels
+        .map((model) => {
+          const isActive = model.id === state.selectedModel;
+
+          return `
+            <button
+              class="catalog-option${isActive ? " active" : ""}"
+              type="button"
+              data-model-id="${escapeHtml(model.id)}"
+              ${controlState.modelDisabled ? "disabled" : ""}
+            >
+              <span class="catalog-option-title-row">
+                <strong>${escapeHtml(model.label)}</strong>
+                <small>${escapeHtml(model.provider || "Workers AI")}</small>
+              </span>
+              <span class="catalog-option-copy">${escapeHtml(model.description)}</span>
+            </button>
+          `;
+        })
+        .join("")
+    : `<p class="catalog-empty">没有找到匹配的模型，请换个关键词试试。</p>`;
 }
 
 function renderPromptCards() {
@@ -468,37 +742,6 @@ function renderPromptCards() {
     .join("");
 }
 
-function getMessageModelLabel(message) {
-  if (typeof message.modelLabel === "string" && message.modelLabel.trim()) {
-    return message.modelLabel;
-  }
-
-  if (!state.config) {
-    return "AI 助手";
-  }
-
-  return (
-    state.config.models.find((item) => item.id === message.modelId)?.label ??
-    "AI 助手"
-  );
-}
-
-function getAssistantMessageStateLabel(message) {
-  if (message.streaming) {
-    return "生成中";
-  }
-
-  if (message.error && message.failureNote) {
-    return "已中断";
-  }
-
-  if (message.error) {
-    return "请求失败";
-  }
-
-  return "已完成";
-}
-
 function renderMessages() {
   if (!elements) {
     return;
@@ -514,12 +757,9 @@ function renderMessages() {
   if (state.history.length === 0) {
     elements.chatHistory.innerHTML = `
       <section class="empty-state">
-        <p class="section-label">Ready To Explore</p>
-        <h3>从一个明确任务开始，让模型更快进入状态。</h3>
-        <p>
-          你可以先用右侧快捷入口启动，也可以直接输入想法、代码需求、待整理文本
-          或你正在处理的问题。
-        </p>
+        <p class="section-label">Ready</p>
+        <h3>从一个明确问题开始。</h3>
+        <p>直接输入问题，或先切换模型。</p>
       </section>
     `;
     lastRenderedHistorySnapshot = nextHistorySnapshot;
@@ -528,7 +768,10 @@ function renderMessages() {
 
   if (
     renderMode === "patch-last-assistant" &&
-    patchLastAssistantMessage(state.history[state.history.length - 1])
+    patchLastAssistantMessage(
+      lastRenderedHistorySnapshot[lastRenderedHistorySnapshot.length - 1],
+      state.history[state.history.length - 1],
+    )
   ) {
     lastRenderedHistorySnapshot = nextHistorySnapshot;
     if (shouldStick) {
@@ -549,34 +792,15 @@ function renderMessages() {
   }
 }
 
-function renderModelSelect() {
-  const models = state.config?.models ?? [];
-
-  elements.modelSelect.innerHTML = models
-    .map(
-      (model) => `
-        <option value="${escapeHtml(model.id)}">
-          ${escapeHtml(formatModelLabel(model))}
-        </option>
-      `,
-    )
-    .join("");
-
-  if (state.selectedModel) {
-    elements.modelSelect.value = state.selectedModel;
-  }
-}
-
 function renderOperatorPanel() {
   if (!elements || !state.config) {
     return;
   }
 
-  const controlState = getCurrentControlState();
-  renderModelSelect();
+  renderFeaturedModels();
+  renderModelCatalog();
   renderModelMeta();
   renderPromptCards();
-  elements.modelSelect.disabled = controlState.modelDisabled;
 }
 
 function renderComposer() {
@@ -585,9 +809,14 @@ function renderComposer() {
   }
 
   const controlState = getCurrentControlState();
+  const composerButtons = elements.composerPresets.querySelectorAll("button");
+
   elements.sendButton.disabled = controlState.sendDisabled;
   elements.userInput.disabled = controlState.inputDisabled;
   elements.resetButton.disabled = controlState.resetDisabled;
+  composerButtons.forEach((button) => {
+    button.disabled = state.isSending;
+  });
 }
 
 async function streamAssistantReply(response, assistantMessage) {
@@ -739,6 +968,31 @@ async function sendMessage(messageText) {
   }
 }
 
+function setSelectedModel(modelId, { closeCatalog = false } = {}) {
+  if (!modelId || modelId === state.selectedModel) {
+    return;
+  }
+
+  const nextModel = getAllModels().find((model) => model.id === modelId);
+
+  if (!nextModel || state.isSending) {
+    return;
+  }
+
+  state.selectedModel = nextModel.id;
+  state.session = {
+    phase: "model-selected",
+    modelLabel: nextModel.label,
+  };
+
+  if (closeCatalog) {
+    state.isCatalogOpen = false;
+  }
+
+  renderOperatorPanel();
+  updateSessionStatus();
+}
+
 async function loadConfig() {
   const response = await fetch("/api/config", {
     headers: {
@@ -752,7 +1006,11 @@ async function loadConfig() {
 
   state.config = await response.json();
   state.selectedModel =
-    state.config.defaultModel || state.config.models?.[0]?.id || null;
+    state.config.defaultModel ||
+    state.config.featuredModels?.[0]?.id ||
+    state.config.modelCatalog?.[0]?.id ||
+    state.config.models?.[0]?.id ||
+    null;
 }
 
 function bindEvents() {
@@ -767,20 +1025,57 @@ function bindEvents() {
   });
 
   elements.userInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+      shouldSubmitFromKeyboardEvent({
+        key: event.key,
+        shiftKey: event.shiftKey,
+        isComposing: event.isComposing,
+      })
+    ) {
       event.preventDefault();
       void sendMessage(elements.userInput.value);
     }
   });
 
-  elements.modelSelect.addEventListener("change", (event) => {
-    state.selectedModel = event.target.value;
-    state.session = {
-      phase: "model-selected",
-      modelLabel: getSelectedModelMeta()?.label || "当前模型",
-    };
+  elements.featuredModelList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-model-id]");
+
+    if (!button) {
+      return;
+    }
+
+    setSelectedModel(button.dataset.modelId);
+  });
+
+  elements.modelCatalogToggle.addEventListener("click", () => {
+    if (state.isSending) {
+      return;
+    }
+
+    state.isCatalogOpen = !state.isCatalogOpen;
     renderOperatorPanel();
-    updateSessionStatus();
+
+    if (state.isCatalogOpen) {
+      requestAnimationFrame(() => {
+        elements.modelSearchInput.focus();
+      });
+    }
+  });
+
+  elements.modelSearchInput.addEventListener("input", (event) => {
+    state.modelCatalogQuery = event.target.value;
+    renderModelCatalog();
+    renderSessionSummary();
+  });
+
+  elements.modelCatalogList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-model-id]");
+
+    if (!button) {
+      return;
+    }
+
+    setSelectedModel(button.dataset.modelId, { closeCatalog: true });
   });
 
   elements.starterPrompts.addEventListener("click", (event) => {
@@ -832,10 +1127,15 @@ async function initApp() {
     chatForm: document.getElementById("chatForm"),
     chatHistory: document.getElementById("chatHistory"),
     chatStatus: document.getElementById("chatStatus"),
-    inputHint: document.getElementById("inputHint"),
-    modelMeta: document.getElementById("modelMeta"),
-    modelSelect: document.getElementById("modelSelect"),
     composerPresets: document.getElementById("composerPresets"),
+    featuredModelList: document.getElementById("featuredModelList"),
+    inputHint: document.getElementById("inputHint"),
+    modelCatalogList: document.getElementById("modelCatalogList"),
+    modelCatalogPanel: document.getElementById("modelCatalogPanel"),
+    modelCatalogPreview: document.getElementById("modelCatalogPreview"),
+    modelCatalogToggle: document.getElementById("modelCatalogToggle"),
+    modelMeta: document.getElementById("modelMeta"),
+    modelSearchInput: document.getElementById("modelSearchInput"),
     resetButton: document.getElementById("resetButton"),
     sendButton: document.getElementById("sendButton"),
     sessionHeadline: document.getElementById("sessionHeadline"),

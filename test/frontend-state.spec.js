@@ -18,6 +18,97 @@ test("formatModelLabel adds clear speed and cost hints", () => {
   );
 });
 
+
+
+test("buildAssistantContentPayload keeps streaming replies in plain-text mode to reduce flicker", () => {
+  assert.equal(typeof app.buildAssistantContentPayload, "function");
+
+  assert.deepEqual(
+    app.buildAssistantContentPayload({
+      role: "assistant",
+      content: "第一段\n第二段",
+      streaming: true,
+      failureNote: "",
+    }),
+    {
+      mode: "text",
+      text: "第一段\n第二段",
+      html: "",
+      noteHtml: "",
+    },
+  );
+});
+
+
+
+test("getModelCatalogPreviewText exposes hidden-model count and names without clutter", () => {
+  assert.equal(typeof app.getModelCatalogPreviewText, "function");
+
+  const text = app.getModelCatalogPreviewText(
+    [
+      { label: "GLM-4.7-Flash", featured: true },
+      { label: "Llama 4 Scout", featured: true },
+      { label: "Mistral Small 3.1 24B", featured: false },
+      { label: "DeepSeek R1 Distill Qwen 32B", featured: false },
+      { label: "QwQ 32B", featured: false },
+    ],
+    [
+      { label: "GLM-4.7-Flash", featured: true },
+      { label: "Llama 4 Scout", featured: true },
+    ],
+  );
+
+  assert.match(text, /还有 3 个模型/);
+  assert.match(text, /Mistral Small 3.1 24B/);
+  assert.match(text, /DeepSeek R1 Distill Qwen 32B/);
+});
+
+test("filterModelCatalog matches label, provider and model id fragments", () => {
+  assert.equal(typeof app.filterModelCatalog, "function");
+
+  const models = [
+    {
+      id: "@cf/zai-org/glm-4.7-flash",
+      label: "GLM-4.7-Flash",
+      provider: "Zhipu AI",
+      family: "GLM",
+      recommendedFor: "中文体验",
+    },
+    {
+      id: "@cf/openai/gpt-oss-20b",
+      label: "GPT-OSS 20B",
+      provider: "OpenAI",
+      family: "GPT-OSS",
+      recommendedFor: "快速分析",
+    },
+  ];
+
+  assert.deepEqual(app.filterModelCatalog(models, "openai").map((model) => model.id), [
+    "@cf/openai/gpt-oss-20b",
+  ]);
+  assert.deepEqual(app.filterModelCatalog(models, "glm").map((model) => model.id), [
+    "@cf/zai-org/glm-4.7-flash",
+  ]);
+  assert.equal(app.filterModelCatalog(models, "不存在").length, 0);
+});
+
+test("shouldSubmitFromKeyboardEvent avoids accidental send during IME composition", () => {
+  assert.equal(typeof app.shouldSubmitFromKeyboardEvent, "function");
+
+  assert.equal(
+    app.shouldSubmitFromKeyboardEvent({ key: "Enter", shiftKey: false, isComposing: false }),
+    true,
+  );
+  assert.equal(
+    app.shouldSubmitFromKeyboardEvent({ key: "Enter", shiftKey: true, isComposing: false }),
+    false,
+  );
+  assert.equal(
+    app.shouldSubmitFromKeyboardEvent({ key: "Enter", shiftKey: false, isComposing: true }),
+    false,
+  );
+});
+
 test("normalizeStarterPrompt returns button-safe text for structured prompt cards", () => {
   assert.equal(typeof app.normalizeStarterPrompt, "function");
 
@@ -94,7 +185,7 @@ test("getSessionStatus labels interrupted partial generations as warnings", () =
   );
 });
 
-test("getSessionStatus reset copy matches the personal playground tone", () => {
+test("getSessionStatus reset copy matches the chat-site tone", () => {
   assert.deepEqual(getSessionStatus({ phase: "reset" }), {
     tone: "idle",
     message: "已清空当前会话，可以开始新的任务。",

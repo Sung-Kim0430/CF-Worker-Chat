@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Personal AI Playground</title>
+    <title>CF Worker Chat</title>
     <link rel="stylesheet" href="/styles.css" />
     <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script
@@ -12,43 +12,31 @@
     ></script>
   </head>
   <body>
-    <div class="page-orb page-orb-left"></div>
-    <div class="page-orb page-orb-right"></div>
+    <a class="skip-link" href="#chatWorkspace">跳到对话区域</a>
 
-    <main class="page-shell">
-      <section id="workspaceHeader" class="workspace-header panel">
-        <div class="workspace-header-main">
-          <p class="eyebrow">Cloudflare Workers AI</p>
-          <h1 id="appTitle">Personal AI Playground</h1>
-          <p id="appSubtitle" class="hero-copy">
-            一个用于写作、编码、整理与探索的个人 AI 入口。
-          </p>
+    <div class="page-shell">
+      <header id="topBar" class="top-bar panel">
+        <div class="top-bar-copy">
+          <h1 id="appTitle">CF Worker Chat</h1>
+          <p id="appSubtitle" class="hero-copy">整洁、稳定的多模型 AI 对话。</p>
         </div>
-        <div class="workspace-header-side">
-          <div class="header-note-card">
-            <p class="section-label">Playground Note</p>
-            <h2>效率优先</h2>
-            <p>
-              保留模型切换、会话状态和中断恢复，让常用任务更快开始，也更容易持续追问。
-            </p>
-          </div>
+        <div class="top-bar-side">
           <div id="workspaceBadges" class="header-badges" aria-label="workspace badges"></div>
         </div>
-      </section>
+      </header>
 
-      <section class="workspace-grid">
-        <section class="conversation-panel panel">
+      <main id="chatWorkspace" class="chat-layout">
+        <section class="chat-column panel">
           <div class="panel-heading">
             <div>
-              <p class="section-label">Playground</p>
-              <h2>对话入口</h2>
+              <p class="section-label">Chat</p>
+              <h2>对话</h2>
             </div>
-            <p class="panel-heading-note">先把任务说清，再决定是否切换模型。</p>
           </div>
 
           <section id="sessionSummary" class="session-summary" data-state="idle">
             <div class="session-summary-copy">
-              <p class="section-label">Session Summary</p>
+              <p class="section-label">Session</p>
               <h3 id="sessionHeadline">准备就绪，可以从一个明确问题开始。</h3>
               <div
                 id="chatStatus"
@@ -68,8 +56,7 @@
 
           <form id="chatForm" class="composer" autocomplete="off">
             <div class="composer-top">
-              <label class="composer-label" for="userInput">你的问题</label>
-              <p class="composer-note">建议一次只聚焦一个任务、一个上下文或一种输出格式。</p>
+              <label class="composer-label" for="userInput">输入消息</label>
             </div>
             <div
               id="composerPresets"
@@ -79,15 +66,12 @@
             <textarea
               id="userInput"
               rows="1"
-              placeholder="例如：请把这个想法整理成一页提纲，并给出下一步。"
+              placeholder="例如：请帮我把这个需求拆成目标、约束、实现步骤和风险。"
             ></textarea>
             <div id="composerActions" class="composer-actions">
               <div class="composer-hints">
                 <p id="inputHint" class="input-hint">
                   Enter 发送，Shift+Enter 换行。
-                </p>
-                <p class="composer-subhint">
-                  发送期间会锁定模型，避免一轮回答中途切换造成结果归属混乱。
                 </p>
               </div>
               <div class="composer-buttons">
@@ -103,36 +87,55 @@
           </form>
         </section>
 
-        <aside class="operator-panel">
-          <section class="operator-card panel">
-            <p class="section-label">Model</p>
-            <label class="field-label" for="modelSelect">当前模型</label>
-            <select id="modelSelect" class="model-select"></select>
+        <aside class="side-column">
+          <section class="side-card panel model-panel">
+            <div class="side-card-heading">
+              <div>
+                <p class="section-label">Models</p>
+                <h3>模型选择</h3>
+              </div>
+              <button
+                id="modelCatalogToggle"
+                class="ghost-button compact-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="modelCatalogPanel"
+              >
+                全部模型
+              </button>
+            </div>
+
+            <div id="featuredModelList" class="featured-model-list" aria-label="featured models"></div>
+            <p id="modelCatalogPreview" class="model-catalog-preview"></p>
+
+            <section id="modelCatalogPanel" class="model-catalog-panel" hidden>
+              <label class="field-label" for="modelSearchInput">搜索模型</label>
+              <input
+                id="modelSearchInput"
+                class="model-search-input"
+                type="search"
+                placeholder="搜索模型或提供方"
+                autocomplete="off"
+              />
+              <div id="modelCatalogList" class="model-catalog-list"></div>
+            </section>
+
             <div id="modelMeta" class="model-meta-card"></div>
           </section>
 
-          <section class="operator-card panel">
-            <div class="tips-heading">
+          <section class="side-card panel">
+            <div class="side-card-heading">
               <div>
                 <p class="section-label">Quick Start</p>
                 <h3>快捷入口</h3>
               </div>
-              <p class="side-note">点击后直接填入输入框</p>
             </div>
             <div id="starterPrompts" class="prompt-grid"></div>
           </section>
 
-          <section class="operator-card panel operator-card-emphasis">
-            <p class="section-label">Playground Notes</p>
-            <ul class="tips-list">
-              <li>先把目标、约束和输出格式说清，再发起生成。</li>
-              <li>如果本轮中断，系统会保留已生成内容，但不会把瞬时失败写回后续历史。</li>
-              <li>要做模型对比时，建议保持同一任务不变，再切换模型观察差异。</li>
-            </ul>
-          </section>
         </aside>
-      </section>
-    </main>
+      </main>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>

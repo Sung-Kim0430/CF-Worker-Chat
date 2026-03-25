@@ -9,6 +9,9 @@ const args = ["wrangler", "dev", "--show-interactive-dev-session=false"];
 
 if (mode === "local") {
   args.push("--local", "--inspector-port", "9230");
+  process.stdout.write(
+    "提示：如果本地 Wrangler 不稳定，或你怀疑自己打开到了旧页面，可先运行 `npm run dev:ui` 做稳定的当前前端预览。\n",
+  );
 } else {
   args.push("--remote", "--inspector-port", "9231");
 }
