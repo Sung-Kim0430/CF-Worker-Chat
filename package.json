@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "node ./scripts/dev.js local",
+    "dev:remote": "node ./scripts/dev.js remote",
     "deploy": "wrangler deploy",
     "test": "node --test"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.77.0"
   }
 }

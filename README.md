@@ -56,10 +56,13 @@
 │  │  └─ ui-state.js
 │  ├─ styles.css
 │  └─ app.js
+├─ scripts/
+│  └─ dev.js
 ├─ src/
 │  ├─ worker.js
 │  └─ lib/
 │     ├─ chat.js
+│     ├─ dev-chat.js
 │     ├─ http.js
 │     ├─ models.js
 │     └─ static.js
@@ -115,17 +118,27 @@ npm install
 
 1. 确认 [`wrangler.jsonc`](./wrangler.jsonc) 中已经声明 `AI` binding 和 `ASSETS`
 2. 安装依赖
-3. 启动本地开发环境：
+3. 启动本地 mock 开发环境：
 
 ```bash
 npm run dev
 ```
 
-或者直接使用：
+这个模式的定位是“界面联调 + 交互验证”：
+
+- `/api/config` 返回真实运行时配置
+- `/api/chat` 在 `localhost` 下如果没有可用的远端 AI 推理能力，会自动回退为 mock SSE 流
+- 这样即使你还没有登录 Cloudflare，或者当前环境不支持本地 AI 绑定，也能先验证 UI、会话流转和错误处理
+
+如果你要验证真实 Workers AI 模型输出，请改用：
 
 ```bash
-wrangler dev
+npm run dev:remote
 ```
+
+这个模式会通过 Cloudflare 远端环境执行推理，因此需要你已经完成 Cloudflare 登录，并且账号具备 Workers AI 权限。
+
+不建议直接手动运行 `wrangler dev`，因为项目额外封装了 `scripts/dev.js` 来固定 inspector 端口、隔离 Wrangler 配置目录并关闭 telemetry 上报，减少本地环境差异。
 
 启动后访问 Wrangler 输出的本地地址。
 
@@ -156,6 +169,13 @@ await env.AI.run(modelId, {
 ```
 
 这比手写鉴权和 SSE 代理更直接，也更适合后续扩展多个模型。
+
+为了让本地开发更稳定，服务端还额外区分了两条路径：
+
+- `localhost` / `127.0.0.1` 下，如果 AI 绑定缺失，或 Wrangler 只提供“存在但只能远端运行”的 AI 占位绑定，则 Worker 会返回 mock SSE 流
+- 非本地环境仍然严格依赖真实 `env.AI.run(...)`，推理失败会返回结构化错误
+
+这能避免演示型界面在本地环境因为绑定能力差异直接报 500/502。
 
 ## 部署
 
@@ -202,8 +222,11 @@ npm test
 优先检查：
 
 - `AI` binding 是否已经在 `wrangler.jsonc` 中配置
+- 你当前使用的是 `npm run dev` 还是 `npm run dev:remote`
 - 当前 Cloudflare 账号是否具备 Workers AI 权限
 - 选中的模型是否在当前账号或区域可用
+
+如果你运行的是 `npm run dev`，本地聊天接口默认允许 mock 回退，这是为了优先验证前端交互链路；要验证真实模型，请切到 `npm run dev:remote`。
 
 ### 2. `/api/config` 正常，但 `/api/chat` 报错
 

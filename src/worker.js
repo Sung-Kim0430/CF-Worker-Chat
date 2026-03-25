@@ -1,4 +1,9 @@
 import { buildMessages, normalizeChatRequest } from "./lib/chat.js";
+import {
+  buildLocalDevChatStream,
+  shouldFallbackFromLocalAiError,
+  shouldUseLocalDevMock,
+} from "./lib/dev-chat.js";
 import { errorResponse, eventStream, json } from "./lib/http.js";
 import { buildClientConfig } from "./lib/models.js";
 import { serveStaticAsset } from "./lib/static.js";
@@ -14,6 +19,7 @@ async function parseJson(request) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const useLocalDevMock = shouldUseLocalDevMock(url);
 
     if (url.pathname === "/api/config" && request.method === "GET") {
       return json(buildClientConfig());
@@ -32,6 +38,10 @@ export default {
         );
       }
 
+      if ((!env.AI || typeof env.AI.run !== "function") && useLocalDevMock) {
+        return eventStream(buildLocalDevChatStream(payload));
+      }
+
       if (!env.AI || typeof env.AI.run !== "function") {
         return errorResponse(
           500,
@@ -48,6 +58,10 @@ export default {
 
         return eventStream(stream);
       } catch (error) {
+        if (useLocalDevMock && shouldFallbackFromLocalAiError(error)) {
+          return eventStream(buildLocalDevChatStream(payload));
+        }
+
         return errorResponse(
           502,
           error instanceof Error
