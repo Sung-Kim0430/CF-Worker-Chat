@@ -4,10 +4,27 @@ export const APP_CONFIG = {
   title: "Workers AI 多模型助手",
   subtitle: "默认适配 GLM-4.7-Flash，适合演示、客服与知识问答场景。",
   inputHint: "Enter 发送，Shift+Enter 换行。建议一次只问一个重点问题。",
+  workspaceBadges: [
+    { label: "Streaming", tone: "success" },
+    { label: "GLM Ready", tone: "info" },
+    { label: "Multi-Model", tone: "neutral" },
+  ],
   starterPrompts: [
-    "请用简洁的方式介绍一下这个产品能帮客户解决什么问题。",
-    "帮我写一段适合售前演示的产品介绍文案。",
-    "请总结 Cloudflare Workers AI 的优势，并给出适用场景。",
+    {
+      title: "产品价值说明",
+      description: "快速生成一段面向客户的产品价值概述。",
+      prompt: "请用简洁的方式介绍一下这个产品能帮客户解决什么问题。",
+    },
+    {
+      title: "售前演示",
+      description: "生成一段适合客户沟通的产品介绍文案。",
+      prompt: "帮我写一段适合售前演示的产品介绍文案。",
+    },
+    {
+      title: "能力亮点总结",
+      description: "归纳 Workers AI 的优势与推荐使用场景。",
+      prompt: "请总结 Cloudflare Workers AI 的优势，并给出适用场景。",
+    },
   ],
 };
 
