@@ -9,6 +9,24 @@ export const APP_CONFIG = {
     { label: "GLM 4.7", tone: "info" },
     { label: "AI Playground", tone: "neutral" },
   ],
+  composerShortcuts: [
+    {
+      label: "整理",
+      prompt: "请把这个想法整理成一页结构化提纲，并给出下一步建议。",
+    },
+    {
+      label: "编码",
+      prompt: "请基于这个需求给出实现方案、边界条件和可能风险。",
+    },
+    {
+      label: "总结",
+      prompt: "请把这段内容总结成要点、结论和行动项。",
+    },
+    {
+      label: "改写",
+      prompt: "请在不改变核心意思的前提下，把这段内容改写得更清晰、更自然。",
+    },
+  ],
   starterPrompts: [
     {
       title: "整理思路",

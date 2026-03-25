@@ -39,4 +39,7 @@ test("GET /api/config returns structured prompt cards and workspace badges", asy
   assert.equal(typeof body.starterPrompts[0]?.description, "string");
   assert.equal(typeof body.starterPrompts[0]?.prompt, "string");
   assert.equal(body.starterPrompts[0]?.title, "整理思路");
+  assert.ok(Array.isArray(body.composerShortcuts));
+  assert.equal(body.composerShortcuts[0]?.label, "整理");
+  assert.equal(typeof body.composerShortcuts[0]?.prompt, "string");
 });

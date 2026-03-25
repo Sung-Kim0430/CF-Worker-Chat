@@ -414,6 +414,20 @@ function renderShell() {
       `,
     )
     .join("");
+
+  elements.composerPresets.innerHTML = (state.config.composerShortcuts ?? [])
+    .map(
+      (shortcut) => `
+        <button
+          class="preset-chip"
+          type="button"
+          data-prompt="${escapeHtml(shortcut.prompt || "")}"
+        >
+          ${escapeHtml(shortcut.label || "快捷任务")}
+        </button>
+      `,
+    )
+    .join("");
 }
 
 function renderModelMeta() {
@@ -782,6 +796,19 @@ function bindEvents() {
     elements.userInput.focus();
   });
 
+  elements.composerPresets.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-prompt]");
+
+    if (!button || state.isSending) {
+      return;
+    }
+
+    elements.userInput.value = readStarterPromptSelection(button);
+    autoResizeTextarea();
+    renderComposer();
+    elements.userInput.focus();
+  });
+
   elements.resetButton.addEventListener("click", () => {
     if (state.isSending) {
       return;
@@ -808,6 +835,7 @@ async function initApp() {
     inputHint: document.getElementById("inputHint"),
     modelMeta: document.getElementById("modelMeta"),
     modelSelect: document.getElementById("modelSelect"),
+    composerPresets: document.getElementById("composerPresets"),
     resetButton: document.getElementById("resetButton"),
     sendButton: document.getElementById("sendButton"),
     sessionHeadline: document.getElementById("sessionHeadline"),
