@@ -230,3 +230,19 @@ test("styles.css gives markdown answers gentle heading and divider hierarchy", (
   assert.match(styles, /\.message-content\s+hr\s*\{[^}]*border-top:\s*1px solid/i);
   assert.match(styles, /\.message-content\s+strong\s*\{[^}]*font-weight:\s*700/i);
 });
+
+test("styles.css keeps model catalog providers chip-like and descriptions compact", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.catalog-option\s+small\s*\{[^}]*display:\s*inline-flex/i);
+  assert.match(styles, /\.catalog-option\s+small\s*\{[^}]*font-size:\s*0\.72rem/i);
+  assert.match(styles, /\.catalog-option-copy\s*\{[^}]*-webkit-line-clamp:\s*2/i);
+});
+
+test("styles.css keeps user and assistant bubbles balanced for final reading rhythm", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.message-card\.user\s*\{[^}]*max-width:\s*min\(72%,\s*62ch\)/i);
+  assert.match(styles, /\.message-card\.assistant\s*\{[^}]*max-width:\s*min\(80%,\s*72ch\)/i);
+  assert.match(styles, /\.message-content\s+pre\s*\{[^}]*margin:\s*0\.95em 0/i);
+});
