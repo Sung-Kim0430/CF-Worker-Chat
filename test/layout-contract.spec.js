@@ -161,3 +161,20 @@ test("styles.css keeps sidebar row actions quiet and precise", () => {
   assert.match(styles, /\.session-inline-action\s*\{[^}]*min-height:\s*26px/i);
   assert.match(styles, /\.session-inline-action\s*\{[^}]*border-radius:\s*9px/i);
 });
+
+test("styles.css keeps the model catalog panel compact and search-first", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.model-catalog-panel\s*\{[^}]*padding:\s*6px/i);
+  assert.match(styles, /\.model-catalog-surface\s*\{[^}]*padding:\s*5px/i);
+  assert.match(styles, /\.model-search-input\s*\{[^}]*min-height:\s*42px/i);
+  assert.match(styles, /\.catalog-option\s*\{[^}]*border-radius:\s*12px/i);
+});
+
+test("styles.css keeps chat messages calm and readable without oversized bubbles", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.chat-history\s*\{[^}]*gap:\s*16px/i);
+  assert.match(styles, /\.message-card\s*\{[^}]*padding:\s*15px 16px/i);
+  assert.match(styles, /\.message-content\s*\{[^}]*line-height:\s*1\.72/i);
+});
