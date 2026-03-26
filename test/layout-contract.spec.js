@@ -138,6 +138,13 @@ test("styles.css supports collapsing the desktop session sidebar from the chat s
   assert.match(styles, /#chatWorkspace\[data-sidebar-collapsed="true"\]\s+#sessionSidebar\s*\{[^}]*display:\s*none/i);
 });
 
+test("styles.css keeps the desktop workspace balanced between a compact sidebar and roomy chat column", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.chat-layout\s*\{[^}]*grid-template-columns:\s*296px minmax\(0,\s*1fr\)/i);
+  assert.match(styles, /\.chat-layout\s*\{[^}]*gap:\s*14px/i);
+});
+
 test("styles.css keeps the sidebar session list dense and low-chrome", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
@@ -204,8 +211,21 @@ test("styles.css keeps the top bar low-chrome and focused on model switching", (
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
   assert.match(styles, /\.top-bar\s*\{[^}]*padding:\s*6px/i);
-  assert.match(styles, /\.model-picker\s*\{[^}]*padding:\s*3px 4px/i);
+  assert.match(styles, /\.top-bar-surface\s*\{[^}]*padding:\s*2px/i);
+  assert.match(styles, /\.top-bar-controls\s*\{[^}]*gap:\s*8px/i);
+  assert.match(styles, /\.model-picker\s*\{[^}]*padding:\s*4px 5px/i);
+  assert.match(styles, /\.model-picker\s*\{[^}]*border-radius:\s*16px/i);
+  assert.match(styles, /\.model-picker\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.62\)/i);
   assert.match(styles, /#sessionSidebarToggle,\s*#modelCatalogToggle\s*\{[^}]*min-height:\s*32px/i);
+});
+
+test("styles.css keeps the mobile sidebar drawer compact and app-like instead of oversized", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /@media \(max-width:\s*960px\)\s*\{[\s\S]*?\.session-sidebar\s*\{[\s\S]*?width:\s*min\(82vw,\s*312px\)/i);
+  assert.match(styles, /@media \(max-width:\s*960px\)\s*\{[\s\S]*?\.session-sidebar\s*\{[\s\S]*?border-radius:\s*0 22px 22px 0/i);
+  assert.match(styles, /@media \(max-width:\s*960px\)\s*\{[\s\S]*?\.session-sidebar\s*\{[\s\S]*?box-shadow:\s*18px 0 42px rgba\(15,\s*23,\s*42,\s*0\.14\)/i);
+  assert.match(styles, /@media \(max-width:\s*960px\)\s*\{[\s\S]*?\.session-sidebar-backdrop\s*\{[\s\S]*?backdrop-filter:\s*blur\(4px\)/i);
 });
 
 test("styles.css keeps the sidebar toggle readable on desktop and gives the hidden-sidebar state a quiet cue", () => {
@@ -263,6 +283,8 @@ test("styles.css keeps the mobile shell compact without crowding the composer", 
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
   assert.match(styles, /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar,\s*\.chat-column\s*\{[\s\S]*?padding:\s*16px/i);
+  assert.match(styles, /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?flex-direction:\s*row/i);
+  assert.match(styles, /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?align-items:\s*center/i);
   assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?#userInput\s*\{[\s\S]*?min-height:\s*88px/i);
   assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.page-shell\s*\{[\s\S]*?width:\s*min\(100vw - 16px,\s*100%\)/i);
 });

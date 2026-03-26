@@ -133,9 +133,9 @@ a:focus-visible {
 .top-bar-surface {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
-  padding: 3px;
+  padding: 2px;
 }
 
 .top-bar-controls,
@@ -144,19 +144,22 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
   flex-wrap: wrap;
+}
+
+.top-bar-controls {
+  gap: 8px;
 }
 
 .model-picker {
   flex: 1;
   min-width: 0;
   justify-content: flex-start;
-  gap: 4px;
-  padding: 3px 4px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.04);
-  background: rgba(255, 255, 255, 0.66);
+  gap: 5px;
+  padding: 4px 5px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.045);
+  background: rgba(255, 255, 255, 0.62);
   box-shadow: none;
 }
 
@@ -176,14 +179,6 @@ a:focus-visible {
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: rgba(252, 253, 255, 0.98);
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
-}
-
-.chat-layout {
-  position: relative;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
 }
 
 .eyebrow,
@@ -304,9 +299,10 @@ a:focus-visible {
 }
 
 .chat-layout {
+  position: relative;
   display: grid;
-  grid-template-columns: 304px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 296px minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
 }
 
@@ -1763,13 +1759,13 @@ a:focus-visible {
     top: 0;
     left: 0;
     z-index: 45;
-    width: min(84vw, 320px);
+    width: min(82vw, 312px);
     height: 100vh;
     min-height: 100vh;
-    border-radius: 0 20px 20px 0;
+    border-radius: 0 22px 22px 0;
     transform: translateX(-104%);
-    transition: transform 220ms ease-out;
-    box-shadow: 22px 0 48px rgba(15, 23, 42, 0.16);
+    transition: transform 200ms ease-out;
+    box-shadow: 18px 0 42px rgba(15, 23, 42, 0.14);
     overscroll-behavior: contain;
   }
 
@@ -1783,7 +1779,7 @@ a:focus-visible {
     z-index: 40;
     display: block;
     background: rgba(15, 23, 42, 0.28);
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(4px);
     transition: opacity 180ms ease;
   }
 
@@ -1813,13 +1809,17 @@ a:focus-visible {
     padding: 16px;
   }
 
-  .top-bar-controls,
   .composer-actions,
   .session-menu-heading,
   .catalog-option-title-row,
   .session-option-title-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .top-bar-controls {
+    flex-direction: row;
+    align-items: center;
   }
 
   .model-picker {
