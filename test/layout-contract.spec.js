@@ -141,9 +141,20 @@ test("styles.css supports collapsing the desktop session sidebar from the chat s
 test("styles.css keeps the sidebar session list dense and low-chrome", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
-  assert.match(styles, /\.session-list\s*\{[^}]*gap:\s*2px/i);
+  assert.match(styles, /\.session-list\s*\{[^}]*gap:\s*10px/i);
+  assert.match(styles, /\.session-group-list\s*\{[^}]*gap:\s*2px/i);
+  assert.match(styles, /\.session-group-label\s*\{[^}]*text-transform:\s*uppercase/i);
   assert.match(styles, /\.session-option\s*\{[^}]*border-radius:\s*14px/i);
   assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*10px 44px 10px 12px/i);
+});
+
+test("styles.css gives sidebar session titles and timestamps a clearer reading hierarchy", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-option-title-row\s*\{[^}]*gap:\s*8px/i);
+  assert.match(styles, /\.session-option-title-row\s*\{[^}]*align-items:\s*baseline/i);
+  assert.match(styles, /\.session-option small\s*\{[^}]*font-size:\s*0\.72rem/i);
+  assert.match(styles, /\.session-option small\s*\{[^}]*text-align:\s*right/i);
 });
 
 test("styles.css keeps the composer compact and quieter than the chat surface", () => {

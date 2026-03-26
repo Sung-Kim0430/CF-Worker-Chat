@@ -274,6 +274,12 @@ function isSameDay(left, right) {
   );
 }
 
+function getDayStartTimestamp(value) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
 export function formatSessionUpdatedLabel(updatedAt, now = Date.now()) {
   const updatedTime = clampTimestamp(updatedAt, resolveNow(now));
   const nowTime = resolveNow(now);
@@ -304,6 +310,36 @@ export function formatSessionUpdatedLabel(updatedAt, now = Date.now()) {
   return `${pad2(updatedDate.getMonth() + 1)}-${pad2(updatedDate.getDate())} ${pad2(
     updatedDate.getHours(),
   )}:${pad2(updatedDate.getMinutes())}`;
+}
+
+export function getSessionUpdatedGroupLabel(updatedAt, now = Date.now()) {
+  const updatedTime = clampTimestamp(updatedAt, resolveNow(now));
+  const nowTime = resolveNow(now);
+  const dayDelta = Math.max(
+    0,
+    Math.floor(
+      (getDayStartTimestamp(nowTime) - getDayStartTimestamp(updatedTime)) /
+        (24 * 60 * 60_000),
+    ),
+  );
+
+  if (dayDelta === 0) {
+    return "今天";
+  }
+
+  if (dayDelta === 1) {
+    return "昨天";
+  }
+
+  if (dayDelta <= 6) {
+    return "7 天内";
+  }
+
+  if (dayDelta <= 29) {
+    return "30 天内";
+  }
+
+  return "更早";
 }
 
 function trimSessions(sessions = [], maxSessions = MAX_LOCAL_SESSIONS) {

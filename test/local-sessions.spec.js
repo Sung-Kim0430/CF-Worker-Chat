@@ -6,6 +6,7 @@ import {
   clearAllSessions,
   createEmptySession,
   formatSessionUpdatedLabel,
+  getSessionUpdatedGroupLabel,
   getSessionPreviewText,
   renameSession,
   restoreAutoSessionTitle,
@@ -138,6 +139,31 @@ test("formatSessionUpdatedLabel uses calendar-aware labels for older sessions", 
   assert.equal(
     formatSessionUpdatedLabel(new Date(2026, 1, 14, 18, 20).getTime(), now),
     "02-14 18:20",
+  );
+});
+
+test("getSessionUpdatedGroupLabel follows chat-style recency sections", () => {
+  const now = new Date(2026, 2, 26, 15, 0).getTime();
+
+  assert.equal(
+    getSessionUpdatedGroupLabel(new Date(2026, 2, 26, 9, 5).getTime(), now),
+    "今天",
+  );
+  assert.equal(
+    getSessionUpdatedGroupLabel(new Date(2026, 2, 25, 21, 8).getTime(), now),
+    "昨天",
+  );
+  assert.equal(
+    getSessionUpdatedGroupLabel(new Date(2026, 2, 22, 18, 20).getTime(), now),
+    "7 天内",
+  );
+  assert.equal(
+    getSessionUpdatedGroupLabel(new Date(2026, 2, 4, 18, 20).getTime(), now),
+    "30 天内",
+  );
+  assert.equal(
+    getSessionUpdatedGroupLabel(new Date(2026, 0, 14, 18, 20).getTime(), now),
+    "更早",
   );
 });
 

@@ -19,6 +19,7 @@ import {
   clearAllSessions,
   createNextSessionStore,
   formatSessionUpdatedLabel,
+  getSessionUpdatedGroupLabel,
   getSessionPreviewText,
   persistSessionStore,
   renameSession,
@@ -88,6 +89,28 @@ export function getNextSessionActionMenuId(currentOpenSessionId = null, requeste
   }
 
   return normalizedCurrent === normalizedRequested ? null : normalizedRequested;
+}
+
+export function groupSessionsByUpdatedAt(sessions = [], now = Date.now()) {
+  const safeSessions = Array.isArray(sessions) ? sessions.filter(Boolean) : [];
+  const groups = [];
+
+  safeSessions.forEach((session) => {
+    const label = getSessionUpdatedGroupLabel(session?.updatedAt, now);
+    const previousGroup = groups[groups.length - 1];
+
+    if (!previousGroup || previousGroup.label !== label) {
+      groups.push({
+        label,
+        sessions: [session],
+      });
+      return;
+    }
+
+    previousGroup.sessions.push(session);
+  });
+
+  return groups;
 }
 
 export function normalizeStarterPrompt(prompt, index = 0) {
@@ -1372,6 +1395,146 @@ function renderModelCatalog() {
     : `<p class="catalog-empty">没有找到匹配的模型，请换个关键词试试。</p>`;
 }
 
+function renderSessionOption(
+  session,
+  {
+    activeSessionId,
+    nowTime,
+    query,
+    sessionActionsDisabled,
+  } = {},
+) {
+  const isActive = session.id === activeSessionId;
+  const messageCount = Array.isArray(session.history) ? session.history.length : 0;
+  const timeLabel = formatSessionUpdatedLabel(session.updatedAt, nowTime);
+  const previewText = getSessionPreviewText(session);
+  const metaLabel = [
+    messageCount > 0 ? `${messageCount} 条消息` : "空白对话",
+    getCompactModelLabel(session.modelId),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const isRenaming = state.renamingSessionId === session.id;
+  const isActionMenuOpen = state.openSessionActionMenuId === session.id;
+  const titleHtml = highlightSearchMatches(session.title || "新对话", query);
+  const previewHtml = highlightSearchMatches(previewText, query);
+  const metaHtml = highlightSearchMatches(metaLabel, query);
+
+  if (isRenaming) {
+    return `
+      <article
+        class="session-option${isActive ? " active" : ""}"
+        data-session-id="${escapeHtml(session.id)}"
+        data-renaming="true"
+      >
+        <form class="session-rename-form" data-session-rename-form data-session-id="${escapeHtml(
+          session.id,
+        )}">
+          <label class="visually-hidden" for="session-rename-${escapeHtml(session.id)}">
+            重命名对话
+          </label>
+          <input
+            id="session-rename-${escapeHtml(session.id)}"
+            class="session-rename-input"
+            data-session-rename-input
+            data-session-id="${escapeHtml(session.id)}"
+            type="text"
+            maxlength="80"
+            value="${escapeHtml(state.renamingSessionDraft)}"
+            placeholder="输入对话标题"
+            autocomplete="off"
+            ${sessionActionsDisabled ? "disabled" : ""}
+          />
+          <div class="session-rename-actions">
+            <button
+              class="session-inline-action session-inline-action-primary"
+              type="submit"
+              ${sessionActionsDisabled ? "disabled" : ""}
+            >
+              保存
+            </button>
+            <button
+              class="session-inline-action"
+              type="button"
+              data-session-action="rename-cancel"
+              data-session-id="${escapeHtml(session.id)}"
+              ${sessionActionsDisabled ? "disabled" : ""}
+            >
+              取消
+            </button>
+          </div>
+        </form>
+        <p class="session-rename-hint">按 Enter 保存，Esc 取消</p>
+      </article>
+    `;
+  }
+
+  return `
+    <article
+      class="session-option${isActive ? " active" : ""}"
+      data-session-id="${escapeHtml(session.id)}"
+    >
+      <button
+        class="session-option-trigger"
+        type="button"
+        data-session-id="${escapeHtml(session.id)}"
+        aria-current="${isActive ? "true" : "false"}"
+        title="${escapeHtml(session.title || "新对话")}"
+        ${sessionActionsDisabled ? "disabled" : ""}
+      >
+        <span class="session-option-title-row">
+          <strong>${titleHtml}</strong>
+          <small>${escapeHtml(timeLabel)}</small>
+        </span>
+        <span class="session-option-copy">${previewHtml}</span>
+        <span class="session-option-meta">${metaHtml}</span>
+      </button>
+      <div
+        class="session-option-actions"
+        data-open="${isActionMenuOpen ? "true" : "false"}"
+      >
+        <button
+          class="session-inline-action session-inline-action-menu"
+          type="button"
+          data-session-action="toggle-menu"
+          data-session-id="${escapeHtml(session.id)}"
+          aria-label="更多操作"
+          aria-expanded="${isActionMenuOpen ? "true" : "false"}"
+          ${sessionActionsDisabled ? "disabled" : ""}
+        >
+          ···
+        </button>
+        <div class="session-action-popover">
+          <button
+            class="session-inline-action"
+            type="button"
+            data-session-action="rename"
+            data-session-id="${escapeHtml(session.id)}"
+            ${sessionActionsDisabled ? "disabled" : ""}
+          >
+            改名
+          </button>
+          ${
+            session.titleManuallyEdited
+              ? `
+        <button
+          class="session-inline-action"
+          type="button"
+          data-session-action="restore-auto-title"
+          data-session-id="${escapeHtml(session.id)}"
+          aria-label="恢复自动标题"
+          ${sessionActionsDisabled ? "disabled" : ""}
+        >
+          自动标题
+        </button>`
+              : ""
+          }
+        </div>
+      </div>
+    </article>
+  `;
+}
+
 function renderSessionList() {
   const activeSessionId = state.sessionStore.activeSessionId;
   const sessions = state.sessionStore.sessions || [];
@@ -1419,145 +1582,30 @@ function renderSessionList() {
   elements.sessionSearchMeta.textContent = searchSummary;
   syncDocumentSurfaceState();
 
+  const nowTime = Date.now();
+  const groupedSessions = groupSessionsByUpdatedAt(visibleSessions, nowTime);
+
   elements.sessionList.innerHTML = visibleSessions.length
-    ? visibleSessions
-        .map((session) => {
-          const isActive = session.id === activeSessionId;
-          const messageCount = session.history.length;
-          const timeLabel = formatSessionUpdatedLabel(session.updatedAt, Date.now());
-          const previewText = getSessionPreviewText(session);
-          const metaLabel = [messageCount > 0 ? `${messageCount} 条消息` : "空白对话", getCompactModelLabel(session.modelId)]
-            .filter(Boolean)
-            .join(" · ");
-          const isRenaming = state.renamingSessionId === session.id;
-          const isActionMenuOpen = state.openSessionActionMenuId === session.id;
-          const titleHtml = highlightSearchMatches(
-            session.title || "新对话",
-            state.sessionSearchQuery,
-          );
-          const previewHtml = highlightSearchMatches(
-            previewText,
-            state.sessionSearchQuery,
-          );
-          const metaHtml = highlightSearchMatches(
-            metaLabel,
-            state.sessionSearchQuery,
-          );
-
-          if (isRenaming) {
-            return `
-              <article
-                class="session-option${isActive ? " active" : ""}"
-                data-session-id="${escapeHtml(session.id)}"
-                data-renaming="true"
-              >
-                <form class="session-rename-form" data-session-rename-form data-session-id="${escapeHtml(
-                  session.id,
-                )}">
-                  <label class="visually-hidden" for="session-rename-${escapeHtml(session.id)}">
-                    重命名对话
-                  </label>
-                  <input
-                    id="session-rename-${escapeHtml(session.id)}"
-                    class="session-rename-input"
-                    data-session-rename-input
-                    data-session-id="${escapeHtml(session.id)}"
-                    type="text"
-                    maxlength="80"
-                    value="${escapeHtml(state.renamingSessionDraft)}"
-                    placeholder="输入对话标题"
-                    autocomplete="off"
-                    ${sessionActionsDisabled ? "disabled" : ""}
-                  />
-                  <div class="session-rename-actions">
-                    <button
-                      class="session-inline-action session-inline-action-primary"
-                      type="submit"
-                      ${sessionActionsDisabled ? "disabled" : ""}
-                    >
-                      保存
-                    </button>
-                    <button
-                      class="session-inline-action"
-                      type="button"
-                      data-session-action="rename-cancel"
-                      data-session-id="${escapeHtml(session.id)}"
-                      ${sessionActionsDisabled ? "disabled" : ""}
-                    >
-                      取消
-                    </button>
-                  </div>
-                </form>
-                <p class="session-rename-hint">按 Enter 保存，Esc 取消</p>
-              </article>
-            `;
-          }
-
-          return `
-            <article
-              class="session-option${isActive ? " active" : ""}"
-              data-session-id="${escapeHtml(session.id)}"
-            >
-              <button
-                class="session-option-trigger"
-                type="button"
-                data-session-id="${escapeHtml(session.id)}"
-                aria-current="${isActive ? "true" : "false"}"
-                title="${escapeHtml(session.title || "新对话")}"
-                ${sessionActionsDisabled ? "disabled" : ""}
-              >
-                <span class="session-option-title-row">
-                  <strong>${titleHtml}</strong>
-                  <small>${escapeHtml(timeLabel)}</small>
-                </span>
-                <span class="session-option-copy">${previewHtml}</span>
-                <span class="session-option-meta">${metaHtml}</span>
-              </button>
-              <div
-                class="session-option-actions"
-                data-open="${isActionMenuOpen ? "true" : "false"}"
-              >
-                <button
-                  class="session-inline-action session-inline-action-menu"
-                  type="button"
-                  data-session-action="toggle-menu"
-                  data-session-id="${escapeHtml(session.id)}"
-                  aria-label="更多操作"
-                  aria-expanded="${isActionMenuOpen ? "true" : "false"}"
-                  ${sessionActionsDisabled ? "disabled" : ""}
-                >
-                  ···
-                </button>
-                <div class="session-action-popover">
-                  <button
-                    class="session-inline-action"
-                    type="button"
-                    data-session-action="rename"
-                    data-session-id="${escapeHtml(session.id)}"
-                    ${sessionActionsDisabled ? "disabled" : ""}
-                  >
-                    改名
-                  </button>
-                  ${
-                    session.titleManuallyEdited
-                      ? `
-                <button
-                  class="session-inline-action"
-                  type="button"
-                  data-session-action="restore-auto-title"
-                  data-session-id="${escapeHtml(session.id)}"
-                  aria-label="恢复自动标题"
-                  ${sessionActionsDisabled ? "disabled" : ""}
-                >
-                  自动标题
-                </button>`
-                      : ""
-                  }
-                </div>
+    ? groupedSessions
+        .map(
+          (group) => `
+            <section class="session-group" aria-label="${escapeHtml(group.label)}">
+              <p class="session-group-label">${escapeHtml(group.label)}</p>
+              <div class="session-group-list">
+                ${group.sessions
+                  .map((session) =>
+                    renderSessionOption(session, {
+                      activeSessionId,
+                      nowTime,
+                      query: state.sessionSearchQuery,
+                      sessionActionsDisabled,
+                    }),
+                  )
+                  .join("")}
               </div>
-            </article>
-          `;
-        })
+            </section>
+          `,
+        )
         .join("")
     : `<p class="catalog-empty">${
         state.sessionSearchQuery

@@ -67,6 +67,36 @@ test("getNextSessionActionMenuId toggles the same menu closed and switches clean
   assert.equal(app.getNextSessionActionMenuId("s2", null), null);
 });
 
+test("groupSessionsByUpdatedAt organizes recent chats into recency buckets while preserving order", () => {
+  assert.equal(typeof app.groupSessionsByUpdatedAt, "function");
+
+  const now = new Date(2026, 2, 26, 15, 0).getTime();
+  const groups = app.groupSessionsByUpdatedAt(
+    [
+      { id: "s1", updatedAt: new Date(2026, 2, 26, 14, 30).getTime() },
+      { id: "s2", updatedAt: new Date(2026, 2, 25, 21, 8).getTime() },
+      { id: "s3", updatedAt: new Date(2026, 2, 23, 9, 0).getTime() },
+      { id: "s4", updatedAt: new Date(2026, 2, 12, 8, 0).getTime() },
+      { id: "s5", updatedAt: new Date(2026, 0, 14, 18, 20).getTime() },
+    ],
+    now,
+  );
+
+  assert.deepEqual(
+    groups.map((group) => ({
+      label: group.label,
+      ids: group.sessions.map((session) => session.id),
+    })),
+    [
+      { label: "今天", ids: ["s1"] },
+      { label: "昨天", ids: ["s2"] },
+      { label: "7 天内", ids: ["s3"] },
+      { label: "30 天内", ids: ["s4"] },
+      { label: "更早", ids: ["s5"] },
+    ],
+  );
+});
+
 
 
 test("buildAssistantContentPayload keeps streaming replies in plain-text mode to reduce flicker", () => {
