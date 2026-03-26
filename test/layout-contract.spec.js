@@ -7,7 +7,9 @@ test("index.html exposes the sidebar history shell anchors", () => {
 
   for (const id of [
     "topBar",
+    "topBarSurface",
     "chatWorkspace",
+    "chatColumnSurface",
     "modelPicker",
     "featuredModelList",
     "modelCatalogToggle",
@@ -26,6 +28,7 @@ test("index.html exposes the sidebar history shell anchors", () => {
     "newChatButton",
     "clearAllSessionsButton",
     "chatForm",
+    "chatComposerShell",
     "chatHistory",
     "userInput",
     "sendButton",

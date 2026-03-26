@@ -24,46 +24,48 @@
 
     <div class="page-shell">
       <header id="topBar" class="top-bar panel">
-        <div class="top-bar-controls">
-          <button
-            id="sessionSidebarToggle"
-            class="ghost-button compact-button mobile-only-button"
-            type="button"
-            aria-expanded="false"
-            aria-controls="sessionSidebar"
-          >
-            对话记录
-          </button>
-
-          <div id="modelPicker" class="model-picker">
-            <div
-              id="featuredModelList"
-              class="featured-model-list"
-              aria-label="featured models"
-            ></div>
+        <div id="topBarSurface" class="top-bar-surface">
+          <div class="top-bar-controls">
             <button
-              id="modelCatalogToggle"
-              class="ghost-button compact-button"
+              id="sessionSidebarToggle"
+              class="ghost-button compact-button mobile-only-button"
               type="button"
               aria-expanded="false"
-              aria-controls="modelCatalogPanel"
+              aria-controls="sessionSidebar"
             >
-              更多模型
+              对话记录
             </button>
-          </div>
-        </div>
 
-        <section id="modelCatalogPanel" class="floating-panel model-catalog-panel" hidden>
-          <label class="field-label" for="modelSearchInput">搜索模型</label>
-          <input
-            id="modelSearchInput"
-            class="model-search-input"
-            type="search"
-            placeholder="搜索模型或提供方"
-            autocomplete="off"
-          />
-          <div id="modelCatalogList" class="model-catalog-list"></div>
-        </section>
+            <div id="modelPicker" class="model-picker">
+              <div
+                id="featuredModelList"
+                class="featured-model-list"
+                aria-label="featured models"
+              ></div>
+              <button
+                id="modelCatalogToggle"
+                class="ghost-button compact-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="modelCatalogPanel"
+              >
+                更多模型
+              </button>
+            </div>
+          </div>
+
+          <section id="modelCatalogPanel" class="floating-panel model-catalog-panel" hidden>
+            <label class="field-label" for="modelSearchInput">搜索模型</label>
+            <input
+              id="modelSearchInput"
+              class="model-search-input"
+              type="search"
+              placeholder="搜索模型或提供方"
+              autocomplete="off"
+            />
+            <div id="modelCatalogList" class="model-catalog-list"></div>
+          </section>
+        </div>
 
         <div
           id="chatStatus"
@@ -143,19 +145,21 @@
           </div>
         </aside>
 
-        <section class="chat-column panel">
+        <section id="chatColumnSurface" class="chat-column panel">
           <div id="chatHistory" class="chat-history" aria-live="polite"></div>
 
-          <form id="chatForm" class="composer" autocomplete="off">
-            <textarea
-              id="userInput"
-              rows="1"
-              placeholder="输入消息"
-            ></textarea>
-            <div id="composerActions" class="composer-actions">
-              <button id="sendButton" class="primary-button" type="submit">发送</button>
-            </div>
-          </form>
+          <div id="chatComposerShell" class="chat-composer-shell">
+            <form id="chatForm" class="composer" autocomplete="off">
+              <textarea
+                id="userInput"
+                rows="1"
+                placeholder="输入消息"
+              ></textarea>
+              <div id="composerActions" class="composer-actions">
+                <button id="sendButton" class="primary-button" type="submit">发送</button>
+              </div>
+            </form>
+          </div>
         </section>
       </main>
     </div>

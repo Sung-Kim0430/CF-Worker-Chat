@@ -57,7 +57,10 @@ test("preview server exposes the current UI and mock chat endpoints without Wran
     const pageHtml = await pageResponse.text();
 
     assert.match(pageHtml, /modelPicker/);
+    assert.match(pageHtml, /topBarSurface/);
     assert.match(pageHtml, /sessionSidebar/);
+    assert.match(pageHtml, /chatColumnSurface/);
+    assert.match(pageHtml, /chatComposerShell/);
     assert.match(pageHtml, /sessionSidebarHeader/);
     assert.match(pageHtml, /sessionSidebarContent/);
     assert.match(pageHtml, /sessionSidebarToggle/);
