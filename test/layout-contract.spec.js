@@ -118,7 +118,7 @@ test("styles.css keeps the sidebar session list dense and low-chrome", () => {
 
   assert.match(styles, /\.session-list\s*\{[^}]*gap:\s*2px/i);
   assert.match(styles, /\.session-option\s*\{[^}]*border-radius:\s*14px/i);
-  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*9px 12px/i);
+  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*10px 44px 10px 12px/i);
 });
 
 test("styles.css keeps the composer compact and quieter than the chat surface", () => {
@@ -245,4 +245,22 @@ test("styles.css keeps user and assistant bubbles balanced for final reading rhy
   assert.match(styles, /\.message-card\.user\s*\{[^}]*max-width:\s*min\(72%,\s*62ch\)/i);
   assert.match(styles, /\.message-card\.assistant\s*\{[^}]*max-width:\s*min\(80%,\s*72ch\)/i);
   assert.match(styles, /\.message-content\s+pre\s*\{[^}]*margin:\s*0\.95em 0/i);
+});
+
+test("styles.css keeps sidebar session actions floating so titles do not stay compressed", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-option\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/i);
+  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*10px 44px 10px 12px/i);
+  assert.match(styles, /\.session-option-actions\s*\{[^}]*position:\s*absolute/i);
+  assert.match(styles, /\.session-option-actions\s*\{[^}]*inset-inline-end:\s*8px/i);
+});
+
+test("styles.css keeps the sidebar shell flatter and assistant cards quieter for a cleaner chat workspace", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-sidebar\s*\{[^}]*padding:\s*8px/i);
+  assert.match(styles, /\.session-sidebar\s*\{[^}]*border-radius:\s*20px/i);
+  assert.match(styles, /\.message-card\s*\{[^}]*box-shadow:\s*0 5px 12px rgba\(15,\s*23,\s*42,\s*0\.03\)/i);
+  assert.match(styles, /\.message-card\.assistant\s*\{[^}]*border-color:\s*rgba\(15,\s*23,\s*42,\s*0\.055\)/i);
 });
