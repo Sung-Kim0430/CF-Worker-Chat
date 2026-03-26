@@ -67,6 +67,23 @@ test("index.html keeps the shell intentionally minimal without decorative chrome
   assert.doesNotMatch(html, /tips-panel/);
 });
 
+test("index.html keeps the desktop sidebar toggle as a dedicated control instead of a mobile-only button", () => {
+  const html = fs.readFileSync("public/index.html", "utf8");
+
+  assert.match(
+    html,
+    /id="sessionSidebarToggle"[^>]*class="ghost-button compact-button sidebar-toggle-button"/i,
+  );
+  assert.doesNotMatch(
+    html,
+    /id="sessionSidebarToggle"[^>]*class="[^"]*mobile-only-button/i,
+  );
+  assert.match(
+    html,
+    /id="sessionSidebarCloseButton"[^>]*class="ghost-button compact-button mobile-only-button"/i,
+  );
+});
+
 test("styles.css includes reduced-motion safeguards for animated UI", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
@@ -152,6 +169,15 @@ test("styles.css keeps the top bar low-chrome and focused on model switching", (
   assert.match(styles, /\.top-bar\s*\{[^}]*padding:\s*6px/i);
   assert.match(styles, /\.model-picker\s*\{[^}]*padding:\s*3px 4px/i);
   assert.match(styles, /#sessionSidebarToggle,\s*#modelCatalogToggle\s*\{[^}]*min-height:\s*32px/i);
+});
+
+test("styles.css keeps the sidebar toggle readable on desktop and gives the hidden-sidebar state a quiet cue", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.sidebar-toggle-button\s*\{[^}]*display:\s*inline-flex/i);
+  assert.match(styles, /\.sidebar-toggle-button\s*\{[^}]*white-space:\s*nowrap/i);
+  assert.match(styles, /#sessionSidebarToggle\[aria-expanded="false"\]\s*\{[^}]*color:\s*var\(--ink\)/i);
+  assert.match(styles, /#sessionSidebarToggle\[aria-expanded="false"\]\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.9\)/i);
 });
 
 test("styles.css keeps sidebar row actions quiet and precise", () => {

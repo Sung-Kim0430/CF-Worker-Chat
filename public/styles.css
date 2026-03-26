@@ -160,9 +160,10 @@ a:focus-visible {
   box-shadow: none;
 }
 
-#sessionSidebarToggle {
+.sidebar-toggle-button {
   display: inline-flex;
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .mobile-only-button {
@@ -1112,6 +1113,12 @@ a:focus-visible {
   background: rgba(255, 255, 255, 0.68);
   box-shadow: none;
   color: var(--muted);
+}
+
+#sessionSidebarToggle[aria-expanded="false"] {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.08);
 }
 
 .primary-button {
