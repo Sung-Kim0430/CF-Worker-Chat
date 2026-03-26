@@ -258,6 +258,10 @@ a:focus-visible {
   gap: 12px;
 }
 
+.message-meta {
+  gap: 10px;
+}
+
 .header-badges,
 .status-row {
   flex-wrap: wrap;
@@ -630,21 +634,22 @@ a:focus-visible {
 }
 
 .message-role {
-  font-size: 0.82rem;
-  font-weight: 700;
-  opacity: 0.84;
+  font-size: 0.76rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  opacity: 0.76;
 }
 
 .message-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 6px 9px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.055);
   color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 650;
+  font-size: 0.71rem;
+  font-weight: 600;
 }
 
 .message-card.user .message-pill {
@@ -659,8 +664,8 @@ a:focus-visible {
 
 .message-pill-live::after {
   content: "";
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: currentColor;
   opacity: 0.7;
@@ -1596,7 +1601,7 @@ a:focus-visible {
 
   .top-bar,
   .chat-column {
-    padding: 18px;
+    padding: 16px;
   }
 
   .top-bar-controls,
@@ -1624,8 +1629,18 @@ a:focus-visible {
 }
 
 @media (max-width: 640px) {
+  .page-shell {
+    width: min(100vw - 16px, 100%);
+    padding: 12px 0 20px;
+  }
+
+  .top-bar,
+  .chat-column {
+    padding: 14px;
+  }
+
   #userInput {
-    min-height: 96px;
+    min-height: 88px;
   }
 
   .top-bar-controls {

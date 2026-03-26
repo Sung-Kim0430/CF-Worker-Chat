@@ -178,3 +178,19 @@ test("styles.css keeps chat messages calm and readable without oversized bubbles
   assert.match(styles, /\.message-card\s*\{[^}]*padding:\s*15px 16px/i);
   assert.match(styles, /\.message-content\s*\{[^}]*line-height:\s*1\.72/i);
 });
+
+test("styles.css keeps message meta quiet and information-dense", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.message-meta\s*\{[^}]*gap:\s*10px/i);
+  assert.match(styles, /\.message-role\s*\{[^}]*font-size:\s*0\.76rem/i);
+  assert.match(styles, /\.message-pill\s*\{[^}]*font-size:\s*0\.71rem/i);
+});
+
+test("styles.css keeps the mobile shell compact without crowding the composer", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar,\s*\.chat-column\s*\{[\s\S]*?padding:\s*16px/i);
+  assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?#userInput\s*\{[\s\S]*?min-height:\s*88px/i);
+  assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.page-shell\s*\{[\s\S]*?width:\s*min\(100vw - 16px,\s*100%\)/i);
+});
