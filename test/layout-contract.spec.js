@@ -174,6 +174,24 @@ test("styles.css keeps the sidebar header shaped like a compact workspace contro
   assert.match(styles, /\.session-search-field\s*\{[^}]*border-radius:\s*16px/i);
 });
 
+test("styles.css keeps sidebar search and footer controls flatter than the main chat surfaces", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-search-field\s*\{[^}]*padding:\s*2px/i);
+  assert.match(styles, /\.session-search-field\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.72\)/i);
+  assert.match(styles, /\.session-search-clear-button\s*\{[^}]*min-height:\s*38px/i);
+  assert.match(styles, /\.sidebar-secondary-action\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.46\)/i);
+});
+
+test("styles.css keeps sidebar hover and active rows soft instead of button-like", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-option:hover\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.68\)/i);
+  assert.match(styles, /\.session-option.active\s*\{[^}]*border-color:\s*transparent/i);
+  assert.match(styles, /\.session-option.active\s*\{[^}]*background:\s*rgba\(244,\s*247,\s*255,\s*0\.82\)/i);
+  assert.match(styles, /\.session-option.active::before\s*\{[^}]*background:\s*rgba\(37,\s*99,\s*235,\s*0\.42\)/i);
+});
+
 test("styles.css centers desktop chat reading width for calmer conversation rhythm", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
