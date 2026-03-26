@@ -569,11 +569,18 @@ a:focus-visible {
 }
 
 .empty-state {
-  margin: auto 0;
-  padding: 12px 4px;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  width: min(100%, 28rem);
+  min-height: clamp(220px, 42vh, 360px);
+  margin: auto;
+  padding: 24px 12px;
+  align-self: center;
   border-radius: 0;
   border: none;
   background: transparent;
+  text-align: center;
 }
 
 .empty-state h3 {

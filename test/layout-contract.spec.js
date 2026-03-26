@@ -81,3 +81,11 @@ test("styles.css removes decorative streaming animations that can amplify flicke
   assert.doesNotMatch(styles, /@keyframes rise-in/);
   assert.doesNotMatch(styles, /@keyframes pulse/);
 });
+
+test("styles.css centers the empty-state copy within the chat area", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.empty-state\s*\{[^}]*display:\s*grid/i);
+  assert.match(styles, /\.empty-state\s*\{[^}]*place-items:\s*center/i);
+  assert.match(styles, /\.empty-state\s*\{[^}]*text-align:\s*center/i);
+});
