@@ -307,7 +307,7 @@ a:focus-visible {
 
 .chat-column {
   min-height: calc(100vh - 136px);
-  padding: 16px;
+  padding: 18px 22px 16px;
   display: flex;
   flex-direction: column;
   border-radius: 24px;
@@ -322,7 +322,8 @@ a:focus-visible {
 .chat-composer-shell {
   position: sticky;
   bottom: 0;
-  margin-top: 10px;
+  width: min(100%, 960px);
+  margin: 10px auto 0;
   padding-top: 8px;
   background:
     linear-gradient(180deg, rgba(252, 253, 255, 0), rgba(252, 253, 255, 0.9) 24%, rgba(252, 253, 255, 0.98));
@@ -332,18 +333,18 @@ a:focus-visible {
   position: sticky;
   top: 88px;
   min-height: calc(100vh - 136px);
-  padding: 8px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   overflow: hidden;
-  border-radius: 20px;
-  border-color: rgba(15, 23, 42, 0.06);
+  border-radius: 22px;
+  border-color: rgba(15, 23, 42, 0.05);
   background:
-    linear-gradient(180deg, rgba(250, 251, 253, 0.98), rgba(247, 249, 252, 0.95));
+    linear-gradient(180deg, rgba(249, 250, 252, 0.98), rgba(244, 247, 251, 0.96));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 8px 18px rgba(15, 23, 42, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.74),
+    0 10px 24px rgba(15, 23, 42, 0.04);
 }
 
 .session-sidebar-header,
@@ -359,34 +360,38 @@ a:focus-visible {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 6px 6px 2px;
-  background: transparent;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 8px 8px 6px;
+  gap: 10px;
+  background:
+    linear-gradient(180deg, rgba(247, 249, 252, 0.96), rgba(247, 249, 252, 0.9));
+  border-bottom: 1px solid rgba(15, 23, 42, 0.045);
 }
 
 .session-sidebar-footer {
   position: sticky;
   bottom: 0;
-  padding: 2px 6px 6px;
-  background: transparent;
-  border-top: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 8px 8px 6px;
+  gap: 6px;
+  background:
+    linear-gradient(180deg, rgba(247, 249, 252, 0.76), rgba(247, 249, 252, 0.94));
+  border-top: 1px solid rgba(15, 23, 42, 0.045);
 }
 
 .session-sidebar-content {
   flex: 1;
   min-height: 0;
-  padding: 0 4px;
+  padding: 0 2px;
 }
 
 .session-sidebar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .session-search-toolbar {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .session-search-field {
@@ -394,10 +399,10 @@ a:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  padding: 4px;
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.62);
+  padding: 3px;
+  border: 1px solid rgba(15, 23, 42, 0.045);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .sidebar-new-chat-button,
@@ -407,12 +412,13 @@ a:focus-visible {
 
 .sidebar-new-chat-button {
   width: 100%;
-  min-height: 40px;
+  min-height: 42px;
   padding-inline: 14px;
-  border-color: rgba(15, 23, 42, 0.06);
-  background: rgba(255, 255, 255, 0.68);
+  border-radius: 14px;
+  border-color: rgba(15, 23, 42, 0.05);
+  background: rgba(255, 255, 255, 0.82);
   color: var(--ink);
-  font-weight: 650;
+  font-weight: 700;
   box-shadow: none;
 }
 
@@ -425,8 +431,8 @@ a:focus-visible {
   min-height: 36px;
   padding-inline: 12px;
   border-radius: 12px;
-  border-color: rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.46);
+  border-color: rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.58);
   font-weight: 600;
 }
 
@@ -559,16 +565,18 @@ a:focus-visible {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 2px 2px 4px;
+  gap: 18px;
+  padding: 8px 0 6px;
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
 
 .chat-history-surface {
   flex: 1;
+  width: min(100%, 960px);
   min-height: 0;
-  padding: 8px 10px 0;
+  margin-inline: auto;
+  padding: 8px 6px 0;
 }
 
 .empty-state {
@@ -592,7 +600,7 @@ a:focus-visible {
 }
 
 .message-card {
-  max-width: min(84%, 72ch);
+  max-width: min(82%, 74ch);
   padding: 16px 18px;
   border-radius: 20px;
   border: 1px solid rgba(15, 23, 42, 0.07);
@@ -601,6 +609,7 @@ a:focus-visible {
 
 .message-card.user {
   align-self: flex-end;
+  max-width: min(76%, 66ch);
   background:
     linear-gradient(180deg, rgba(52, 86, 195, 0.96), rgba(42, 73, 174, 0.96));
   color: #f8fbff;
@@ -609,6 +618,7 @@ a:focus-visible {
 
 .message-card.assistant {
   align-self: flex-start;
+  max-width: min(82%, 74ch);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 250, 252, 0.98));
   border-bottom-left-radius: 12px;

@@ -129,3 +129,19 @@ test("styles.css keeps the composer compact and quieter than the chat surface", 
   assert.match(styles, /#userInput\s*\{[^}]*min-height:\s*72px/i);
   assert.match(styles, /\.composer-actions\s*\{[^}]*margin-top:\s*8px/i);
 });
+
+test("styles.css keeps the sidebar header shaped like a compact workspace control rail", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-sidebar-header\s*\{[^}]*padding:\s*8px 8px 6px/i);
+  assert.match(styles, /\.sidebar-new-chat-button\s*\{[^}]*min-height:\s*42px/i);
+  assert.match(styles, /\.session-search-field\s*\{[^}]*border-radius:\s*16px/i);
+});
+
+test("styles.css centers desktop chat reading width for calmer conversation rhythm", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.chat-history-surface\s*\{[^}]*width:\s*min\(100%,\s*960px\)/i);
+  assert.match(styles, /\.chat-composer-shell\s*\{[^}]*width:\s*min\(100%,\s*960px\)/i);
+  assert.match(styles, /\.message-card\s*\{[^}]*max-width:\s*min\(82%,\s*74ch\)/i);
+});
