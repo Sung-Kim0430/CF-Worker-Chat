@@ -18,6 +18,7 @@ import {
   buildSessionTitle,
   clearAllSessions,
   createNextSessionStore,
+  formatSessionUpdatedLabel,
   persistSessionStore,
   replaceSession,
   restoreSessionStore,
@@ -36,19 +37,13 @@ const state = {
   isSending: false,
   modelCatalogQuery: "",
   isCatalogOpen: false,
-  isSessionMenuOpen: false,
+  isSessionSidebarOpen: false,
   session: {
     phase: "booting",
   },
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
-const sessionTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  month: "numeric",
-  day: "numeric",
   hour: "2-digit",
   minute: "2-digit",
 });
@@ -512,7 +507,7 @@ function restoreLocalSessionStore() {
   syncStateFromActiveSession({ resetRenderSnapshot: true });
 }
 
-function touchActiveSession({ preserveTitle = false } = {}) {
+function touchActiveSession({ preserveTitle = false, updateTimestamp = false } = {}) {
   const activeSession = getActiveSession();
 
   if (!activeSession) {
@@ -524,7 +519,7 @@ function touchActiveSession({ preserveTitle = false } = {}) {
     history: [...activeSession.history],
     expandedCodeBlocks: { ...activeSession.expandedCodeBlocks },
     modelId: state.selectedModel || activeSession.modelId || getDefaultModelId(),
-    updatedAt: Date.now(),
+    updatedAt: updateTimestamp ? Date.now() : activeSession.updatedAt || Date.now(),
   };
 
   if (!preserveTitle) {
@@ -546,14 +541,14 @@ function createNewChatSession() {
     defaultModelId: state.selectedModel || getDefaultModelId(),
     now: Date.now,
   });
-  state.isSessionMenuOpen = false;
+  state.isSessionSidebarOpen = false;
   syncStateFromActiveSession({ resetRenderSnapshot: true });
   persistLocalSessionStore();
 }
 
 function switchToSession(sessionId) {
   state.sessionStore = setActiveSessionId(state.sessionStore, sessionId);
-  state.isSessionMenuOpen = false;
+  state.isSessionSidebarOpen = false;
   state.isCatalogOpen = false;
   syncStateFromActiveSession({ resetRenderSnapshot: true });
   persistLocalSessionStore();
@@ -565,7 +560,7 @@ function clearAllLocalSessions() {
     now: Date.now,
   });
   state.isCatalogOpen = false;
-  state.isSessionMenuOpen = false;
+  state.isSessionSidebarOpen = false;
   syncStateFromActiveSession({ resetRenderSnapshot: true });
   persistLocalSessionStore();
 }
@@ -1064,33 +1059,35 @@ function renderModelCatalog() {
 function renderSessionList() {
   const activeSessionId = state.sessionStore.activeSessionId;
   const sessions = state.sessionStore.sessions || [];
-  const controlState = getCurrentControlState();
+  const sessionActionsDisabled = state.isSending;
 
-  elements.sessionMenuToggle.disabled = state.isSending;
-  elements.sessionMenuToggle.setAttribute(
+  elements.sessionSidebarToggle.setAttribute(
     "aria-expanded",
-    state.isSessionMenuOpen ? "true" : "false",
+    state.isSessionSidebarOpen ? "true" : "false",
   );
-  elements.sessionMenuPanel.hidden = !state.isSessionMenuOpen;
+  elements.sessionSidebar.dataset.open = state.isSessionSidebarOpen ? "true" : "false";
+  elements.sessionSidebarBackdrop.hidden = !state.isSessionSidebarOpen;
   elements.clearAllSessionsButton.disabled =
-    state.isSending || sessions.length === 0;
+    sessionActionsDisabled || sessions.length === 0;
+  elements.newChatButton.disabled = sessionActionsDisabled;
 
   elements.sessionList.innerHTML = sessions.length
     ? sessions
         .map((session) => {
           const isActive = session.id === activeSessionId;
           const messageCount = session.history.length;
+          const timeLabel = formatSessionUpdatedLabel(session.updatedAt, Date.now());
 
           return `
             <button
               class="session-option${isActive ? " active" : ""}"
               type="button"
               data-session-id="${escapeHtml(session.id)}"
-              ${controlState.modelDisabled ? "disabled" : ""}
+              ${sessionActionsDisabled ? "disabled" : ""}
             >
               <span class="session-option-title-row">
                 <strong>${escapeHtml(session.title || "新对话")}</strong>
-                <small>${escapeHtml(sessionTimeFormatter.format(session.updatedAt))}</small>
+                <small>${escapeHtml(timeLabel)}</small>
               </span>
               <span class="session-option-copy">${escapeHtml(
                 messageCount > 0 ? `${messageCount} 条消息` : "空白对话",
@@ -1214,7 +1211,6 @@ function renderComposer() {
 
   elements.sendButton.disabled = controlState.sendDisabled;
   elements.userInput.disabled = controlState.inputDisabled;
-  elements.newChatButton.disabled = state.isSending;
 }
 
 async function streamAssistantReply(response, assistantMessage) {
@@ -1311,7 +1307,7 @@ async function sendMessage(messageText) {
   };
 
   state.history.push(userMessage, assistantMessage);
-  touchActiveSession();
+  touchActiveSession({ updateTimestamp: true });
   state.isSending = true;
   state.session = {
     phase: "sending",
@@ -1359,7 +1355,7 @@ async function sendMessage(messageText) {
   } finally {
     state.isSending = false;
     assistantMessage.streaming = false;
-    touchActiveSession();
+    touchActiveSession({ updateTimestamp: true });
     renderMessages();
     renderComposer();
     renderOperatorPanel();
@@ -1448,7 +1444,7 @@ function bindEvents() {
     }
 
     state.isCatalogOpen = !state.isCatalogOpen;
-    state.isSessionMenuOpen = false;
+    state.isSessionSidebarOpen = false;
     renderOperatorPanel();
 
     if (state.isCatalogOpen) {
@@ -1473,12 +1469,8 @@ function bindEvents() {
     setSelectedModel(button.dataset.modelId, { closeCatalog: true });
   });
 
-  elements.sessionMenuToggle.addEventListener("click", () => {
-    if (state.isSending) {
-      return;
-    }
-
-    state.isSessionMenuOpen = !state.isSessionMenuOpen;
+  elements.sessionSidebarToggle.addEventListener("click", () => {
+    state.isSessionSidebarOpen = !state.isSessionSidebarOpen;
     state.isCatalogOpen = false;
     renderOperatorPanel();
   });
@@ -1542,16 +1534,13 @@ function bindEvents() {
     elements.userInput.focus();
   });
 
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest("#topBar")) {
-      if (!state.isCatalogOpen && !state.isSessionMenuOpen) {
-        return;
-      }
-
-      state.isCatalogOpen = false;
-      state.isSessionMenuOpen = false;
-      renderOperatorPanel();
+  elements.sessionSidebarBackdrop.addEventListener("click", () => {
+    if (!state.isSessionSidebarOpen) {
+      return;
     }
+
+    state.isSessionSidebarOpen = false;
+    renderOperatorPanel();
   });
 
   elements.chatHistory.addEventListener("click", async (event) => {
@@ -1597,8 +1586,9 @@ async function initApp() {
     sendButton: document.getElementById("sendButton"),
     newChatButton: document.getElementById("newChatButton"),
     sessionList: document.getElementById("sessionList"),
-    sessionMenuToggle: document.getElementById("sessionMenuToggle"),
-    sessionMenuPanel: document.getElementById("sessionMenuPanel"),
+    sessionSidebar: document.getElementById("sessionSidebar"),
+    sessionSidebarBackdrop: document.getElementById("sessionSidebarBackdrop"),
+    sessionSidebarToggle: document.getElementById("sessionSidebarToggle"),
     clearAllSessionsButton: document.getElementById("clearAllSessionsButton"),
     userInput: document.getElementById("userInput"),
   };

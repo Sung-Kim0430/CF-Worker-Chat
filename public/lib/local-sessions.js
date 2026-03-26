@@ -80,26 +80,57 @@ function normalizeHistory(history = []) {
     .slice(-MAX_SESSION_MESSAGES);
 }
 
-export function buildSessionTitle(history = [], fallback = DEFAULT_SESSION_TITLE, maxLength = 24) {
+function normalizeSessionTitleSource(value = "") {
+  return String(value || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/[*_~]+/g, "")
+    .replace(/^\s*(?:#{1,6}\s+|>\s+|[-*+]\s+|\d+[.)]\s+)/, "")
+    .replace(/^[\s"'“”‘’`【】［］()（）〔〕「」]+/, "")
+    .replace(/[\s"'“”‘’`【】［］()（）〔〕「」]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getVisualWidth(character = "") {
+  return /[\u1100-\u11ff\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]/u.test(character)
+    ? 2
+    : 1;
+}
+
+function truncateSessionTitle(value = "", maxUnits = 28) {
+  let width = 0;
+  let result = "";
+
+  for (const character of String(value || "")) {
+    const characterWidth = getVisualWidth(character);
+
+    if (width + characterWidth > maxUnits - 1) {
+      return `${result.trimEnd()}…`;
+    }
+
+    result += character;
+    width += characterWidth;
+  }
+
+  return result.trim();
+}
+
+export function buildSessionTitle(history = [], fallback = DEFAULT_SESSION_TITLE, maxUnits = 28) {
   const sourceMessage = history.find(
     (message) => message?.role === "user" && typeof message.content === "string" && message.content.trim(),
   ) ?? history.find(
     (message) => typeof message?.content === "string" && message.content.trim(),
   );
 
-  const normalized = sourceMessage?.content
-    ?.replace(/\s+/g, " ")
-    .trim();
+  const normalized = normalizeSessionTitleSource(sourceMessage?.content || "");
 
   if (!normalized) {
     return fallback;
   }
 
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, maxLength)}…`;
+  return truncateSessionTitle(normalized, maxUnits);
 }
 
 function normalizeModelId(modelId, defaultModelId, availableModelIds = []) {
@@ -161,15 +192,68 @@ export function normalizeSession(
 }
 
 export function sortSessionsByUpdatedAt(sessions = []) {
-  return [...sessions].sort((left, right) => {
-    const updatedDelta = Number(right.updatedAt || 0) - Number(left.updatedAt || 0);
+  return [...sessions]
+    .map((session, index) => ({ session, index }))
+    .sort((left, right) => {
+      const updatedDelta = Number(right.session.updatedAt || 0) - Number(left.session.updatedAt || 0);
 
-    if (updatedDelta !== 0) {
-      return updatedDelta;
-    }
+      if (updatedDelta !== 0) {
+        return updatedDelta;
+      }
 
-    return Number(right.createdAt || 0) - Number(left.createdAt || 0);
-  });
+      const createdDelta = Number(right.session.createdAt || 0) - Number(left.session.createdAt || 0);
+
+      if (createdDelta !== 0) {
+        return createdDelta;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ session }) => session);
+}
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function isSameDay(left, right) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+export function formatSessionUpdatedLabel(updatedAt, now = Date.now()) {
+  const updatedTime = clampTimestamp(updatedAt, resolveNow(now));
+  const nowTime = resolveNow(now);
+  const delta = Math.max(nowTime - updatedTime, 0);
+
+  if (delta < 60_000) {
+    return "刚刚";
+  }
+
+  if (delta < 60 * 60_000) {
+    return `${Math.max(1, Math.floor(delta / 60_000))} 分钟前`;
+  }
+
+  const updatedDate = new Date(updatedTime);
+  const nowDate = new Date(nowTime);
+
+  if (isSameDay(updatedDate, nowDate)) {
+    return `今天 ${pad2(updatedDate.getHours())}:${pad2(updatedDate.getMinutes())}`;
+  }
+
+  const yesterday = new Date(nowTime);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (isSameDay(updatedDate, yesterday)) {
+    return `昨天 ${pad2(updatedDate.getHours())}:${pad2(updatedDate.getMinutes())}`;
+  }
+
+  return `${pad2(updatedDate.getMonth() + 1)}-${pad2(updatedDate.getDate())} ${pad2(
+    updatedDate.getHours(),
+  )}:${pad2(updatedDate.getMinutes())}`;
 }
 
 function trimSessions(sessions = [], maxSessions = MAX_LOCAL_SESSIONS) {

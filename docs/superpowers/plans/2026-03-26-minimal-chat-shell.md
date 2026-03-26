@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the current multi-panel shell with a single-column chat UI, move model switching into the top bar, and add local multi-session persistence with manual clear-all support.
+**Goal:** Refine the new minimal shell so desktop uses a left history sidebar, mobile collapses that sidebar cleanly, and the session list becomes easier to scan through smarter titles, gentler active-state emphasis, and more useful time labels.
 
-**Architecture:** Keep the existing Worker API and browser chat flow, but simplify the page shell and move browser state toward explicit session persistence. Introduce a small browser-side persistence layer for local sessions, keep streaming rendering untouched, and reuse the existing code-block enhancement path only for completed assistant replies.
+**Architecture:** Keep the existing Worker API and current local-session persistence, but rebalance the UI so model controls stay in the top bar while conversation history moves into a dedicated left sidebar. Add pure helpers for fixed-title cleanup, relative time labels, and ordering rules so the sidebar UX stays testable and stable.
 
 **Tech Stack:** JavaScript ESM, vanilla HTML/CSS/JS, Cloudflare Worker config endpoint, localStorage, Node test runner
 
@@ -13,20 +13,19 @@
 ## File Map
 
 - `public/index.html`
-  Remove presentation-style sections and rebuild the shell around a compact top bar plus one chat column.
+  Rework the shell around a compact top bar, a desktop-left session sidebar, and the main chat column.
 
 - `public/styles.css`
-  Replace right-rail and summary styling with compact top-bar controls and a quieter single-column layout.
+  Style the session sidebar, mobile collapse behavior, and calmer active-session emphasis.
 
 - `public/app.js`
-  Integrate top-bar controls, route all chat/history operations through an active session model, and hook persistence into existing render paths.
+  Integrate the sidebar controls, render smarter session metadata, and keep ordering stable for content updates only.
 
 - `public/lib/local-sessions.js`
-  New pure helper module for:
-  - storage key management
-  - safe localStorage parse / write
-  - session normalization
-  - session creation, selection, trimming, and clear-all behavior
+  Expand the local-session helper module with:
+  - smarter fixed-title generation
+  - relative time label formatting
+  - ordering helpers that avoid noisy reordering from UI-only changes
 
 - `test/frontend-state.spec.js`
   Add persistence and shell-state behavior coverage.
@@ -37,96 +36,66 @@
 - `README.md`
   Update only if the visible usage flow materially changes after implementation.
 
-## Task 1: Define A Pure Local Session Persistence Helper
+## Task 1: Add Pure Session-List Presentation Helpers
 
 **Files:**
-- Create: `public/lib/local-sessions.js`
-- Modify: `test/frontend-state.spec.js`
+- Modify: `public/lib/local-sessions.js`
+- Modify: `test/local-sessions.spec.js`
 
-- [ ] **Step 1: Write the failing persistence tests**
+- [ ] **Step 1: Write the failing session-list helper tests**
 
 ```js
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  createEmptySession,
-  buildInitialSessionStore,
-  persistSessionStore,
-  restoreSessionStore,
-  clearAllSessions,
+  buildSessionTitle,
+  formatSessionUpdatedLabel,
+  sortSessionsByUpdatedAt,
 } from "../public/lib/local-sessions.js";
 
-test("buildInitialSessionStore restores multiple sessions and active session id safely", () => {
-  const store = buildInitialSessionStore({
-    defaultModelId: "@cf/zai-org/glm-4.7-flash",
-    storageValue: JSON.stringify({
-      activeSessionId: "s2",
-      sessions: [
-        { id: "s1", history: [], modelId: "@cf/zai-org/glm-4.7-flash" },
-        { id: "s2", history: [{ role: "user", content: "hi" }], modelId: "@cf/openai/gpt-oss-20b" },
-      ],
-    }),
-  });
+test("buildSessionTitle derives a fixed clean title from the first user message", () => {
+  const title = buildSessionTitle([
+    { role: "user", content: '##  请帮我把这个 Cloudflare Worker 聊天站点重构一下，并清理 UI 文案  ' },
+    { role: "user", content: "后续追问不应该改变标题" },
+  ]);
 
-  assert.equal(store.activeSessionId, "s2");
-  assert.equal(store.sessions.length, 2);
-  assert.equal(store.sessions[1].modelId, "@cf/openai/gpt-oss-20b");
+  assert.equal(title, "请帮我把这个 Cloudflare Wor…");
 });
 
-test("clearAllSessions returns a fresh empty session", () => {
-  const store = clearAllSessions({
-    defaultModelId: "@cf/zai-org/glm-4.7-flash",
-  });
+test("formatSessionUpdatedLabel prefers relative labels for recent sessions", () => {
+  const now = new Date(2026, 2, 26, 15, 0).getTime();
 
-  assert.equal(store.sessions.length, 1);
-  assert.equal(store.sessions[0].history.length, 0);
+  assert.equal(formatSessionUpdatedLabel(now - 30_000, now), "刚刚");
+  assert.equal(formatSessionUpdatedLabel(now - 10 * 60_000, now), "10 分钟前");
 });
 ```
 
-- [ ] **Step 2: Run the persistence test to verify it fails**
+- [ ] **Step 2: Run the session-list helper test to verify it fails**
 
-Run: `node --test test/frontend-state.spec.js`
-Expected: FAIL because `public/lib/local-sessions.js` does not exist yet.
+Run: `node --test test/local-sessions.spec.js`
+Expected: FAIL because the current title and time helpers are still too coarse.
 
-- [ ] **Step 3: Implement the minimum persistence helper**
+- [ ] **Step 3: Implement the minimum session-list helpers**
 
-Create `public/lib/local-sessions.js` with focused helpers:
+Extend `public/lib/local-sessions.js` with:
+- smarter title cleanup / truncation
+- relative time formatting
+- ordering helpers that remain stable for identical timestamps
+- optional metadata helpers if they keep `public/app.js` smaller
 
-```js
-export function createEmptySession(defaultModelId) {
-  const now = Date.now();
-  return {
-    id: `session-${now}`,
-    title: "新对话",
-    createdAt: now,
-    updatedAt: now,
-    history: [],
-    modelId: defaultModelId,
-    expandedCodeBlocks: {},
-  };
-}
-```
+- [ ] **Step 4: Re-run the helper test**
 
-Also add helpers for:
-- safe JSON parse
-- normalizing restored sessions
-- trimming to maximum session/message limits
-- storing and restoring the active session id
-- clearing everything back to one empty session
-
-- [ ] **Step 4: Re-run the persistence test**
-
-Run: `node --test test/frontend-state.spec.js`
+Run: `node --test test/local-sessions.spec.js`
 Expected: PASS
 
-- [ ] **Step 5: Commit the persistence helper**
+- [ ] **Step 5: Commit the helper refinement**
 
 ```bash
-git add public/lib/local-sessions.js test/frontend-state.spec.js
-git commit -m "feat: add local session persistence helpers"
+git add public/lib/local-sessions.js test/local-sessions.spec.js
+git commit -m "feat: refine local session list helpers"
 ```
 
-## Task 2: Replace The Existing Page Shell With A Minimal Top-Bar Layout
+## Task 2: Replace The History Popover With A Left Sidebar
 
 **Files:**
 - Modify: `public/index.html`
@@ -145,8 +114,10 @@ test("index.html exposes only the top-bar chat shell controls", () => {
 
   assert.match(html, /id="topBar"/);
   assert.match(html, /id="modelPicker"/);
-  assert.match(html, /id="sessionMenuToggle"/);
+  assert.match(html, /id="sessionSidebar"/);
+  assert.match(html, /id="sessionSidebarToggle"/);
   assert.match(html, /id="newChatButton"/);
+  assert.match(html, /id="sessionList"/);
 
   assert.doesNotMatch(html, /id="sessionSummary"/);
   assert.doesNotMatch(html, /id="starterPrompts"/);
@@ -162,24 +133,15 @@ Expected: FAIL because the current HTML still contains the old shell.
 - [ ] **Step 3: Implement the minimal shell**
 
 Update `public/index.html` so the page contains:
-- a compact `#topBar`
-- a model selector container in the top bar
-- session-history and new-chat controls in the top bar
-- one main chat column
-- the existing composer
-
-Remove:
-- title and subtitle
-- badges
-- session summary
-- quick-start section
-- side-column layout
+- a compact `#topBar` with model controls
+- a desktop-left `#sessionSidebar`
+- a mobile history toggle
+- the existing chat column and composer
 
 Update `public/styles.css` so:
-- the top bar behaves like a compact control strip
-- the page uses one main chat column
-- spacing is tighter and calmer
-- mobile layout keeps all controls reachable without restoring extra chrome
+- the sidebar is always visible on desktop
+- the sidebar collapses cleanly on mobile
+- the active session row is clearer but still restrained
 
 - [ ] **Step 4: Re-run the shell contract test**
 
@@ -193,188 +155,130 @@ git add public/index.html public/styles.css test/layout-contract.spec.js
 git commit -m "feat: simplify chat shell layout"
 ```
 
-## Task 3: Move Model Selection Into The Top Bar
+## Task 3: Refine Sidebar Row Content And Active-State Styling
 
 **Files:**
 - Modify: `public/app.js`
-- Modify: `public/index.html`
 - Modify: `public/styles.css`
-- Modify: `test/frontend-state.spec.js`
+- Modify: `test/local-sessions.spec.js`
+- Modify: `test/preview-server.spec.js`
 
-- [ ] **Step 1: Write the failing model-shell tests**
+- [ ] **Step 1: Write the failing sidebar UX tests**
 
 ```js
-test("rendered model controls keep model switching available without the side rail", () => {
-  assert.equal(typeof app.formatModelLabel, "function");
-  // Add a narrow pure helper if needed so this remains testable without DOM-heavy setup.
+test("preview server exposes the sidebar history controls", async () => {
+  // Assert the preview HTML includes the sidebar and the mobile toggle.
 });
 ```
 
 - [ ] **Step 2: Run the frontend-state test to verify it fails**
 
 Run: `node --test test/frontend-state.spec.js`
-Expected: FAIL because the new top-bar control path is not implemented yet.
+Expected: FAIL because the history UI still uses the old popover or old styling contract.
 
-- [ ] **Step 3: Implement the minimum top-bar model path**
+- [ ] **Step 3: Implement the minimum sidebar row refinement**
 
 Refactor `public/app.js` to:
-- point element lookups to the new top-bar controls
-- keep the featured model picker compact
-- optionally open the full searchable catalog from the same compact area
-- remove dependency on the deleted side panel
-- preserve existing model locking during generation
+- render smarter titles and relative time labels
+- render compact second-line metadata
+- use gentler active-state emphasis
+- keep model controls in the top bar
 
 - [ ] **Step 4: Re-run the frontend-state test**
 
 Run: `node --test test/frontend-state.spec.js`
 Expected: PASS
 
-- [ ] **Step 5: Commit the top-bar model controls**
+- [ ] **Step 5: Commit the sidebar row refinement**
 
 ```bash
 git add public/app.js public/index.html public/styles.css test/frontend-state.spec.js
-git commit -m "feat: move model controls into top bar"
+git commit -m "feat: refine sidebar history presentation"
 ```
 
-## Task 4: Route The Chat UI Through Active Local Sessions
+## Task 4: Keep Ordering Stable For Meaningful Updates Only
 
 **Files:**
 - Modify: `public/app.js`
 - Modify: `public/lib/local-sessions.js`
-- Modify: `test/frontend-state.spec.js`
+- Modify: `test/local-sessions.spec.js`
 
 - [ ] **Step 1: Write the failing active-session tests**
 
 ```js
-test("session switching restores history and selected model", () => {
-  // Add a pure helper around active-session selection if needed.
-});
-
-test("new chat creates a fresh local session without deleting old ones", () => {
-  // Assert the next store has one more session and an empty active history.
+test("UI-only session state changes do not bump sidebar ordering", () => {
+  // Add a pure helper if needed to distinguish content updates from UI-only updates.
 });
 ```
 
 - [ ] **Step 2: Run the frontend-state test to verify it fails**
 
 Run: `node --test test/frontend-state.spec.js`
-Expected: FAIL because active-session routing does not exist yet.
+Expected: FAIL because the app still treats some UI-only updates as meaningful session activity.
 
-- [ ] **Step 3: Implement the minimum session routing**
+- [ ] **Step 3: Implement the minimum ordering refinement**
 
 Refactor `public/app.js` so:
-- `state.history` becomes derived from the active session rather than a global array
-- `state.selectedModel` follows the active session’s model
-- sending a message writes into the active session
-- code-block expansion state remains per session
-- switching sessions updates the visible chat immediately
+- message/content updates refresh `updatedAt`
+- pure UI-only updates such as code-block expansion do not refresh `updatedAt`
+- switching and restoring sessions keep ordering predictable
 
 - [ ] **Step 4: Re-run the frontend-state test**
 
 Run: `node --test test/frontend-state.spec.js`
 Expected: PASS
 
-- [ ] **Step 5: Commit the session routing changes**
+- [ ] **Step 5: Commit the ordering changes**
 
 ```bash
 git add public/app.js public/lib/local-sessions.js test/frontend-state.spec.js
-git commit -m "feat: persist active local chat sessions"
+git commit -m "fix: stabilize sidebar session ordering"
 ```
 
-## Task 5: Add History UI And Clear-All Support
+## Task 5: Polish Mobile Sidebar Collapse Behavior
 
 **Files:**
-- Modify: `public/index.html`
 - Modify: `public/styles.css`
 - Modify: `public/app.js`
 - Modify: `test/layout-contract.spec.js`
-- Modify: `test/frontend-state.spec.js`
+- Modify: `test/preview-server.spec.js`
 
 - [ ] **Step 1: Write the failing history-menu tests**
 
 ```js
-test("layout exposes history and new-chat controls in the top bar", () => {
-  // Assert the new ids/classes exist in the HTML contract.
-});
-
-test("clear-all rebuilds a fresh empty session store", () => {
-  // Assert the pure helper or app-level state transition recreates one empty session.
+test("layout exposes a mobile sidebar toggle and desktop sidebar shell", () => {
+  // Assert the new sidebar ids/classes exist in the HTML contract.
 });
 ```
 
 - [ ] **Step 2: Run the relevant tests to verify they fail**
 
 Run: `node --test test/layout-contract.spec.js test/frontend-state.spec.js`
-Expected: FAIL because the history menu and clear-all flow do not yet exist.
+Expected: FAIL because the current shell still uses the old history interaction model.
 
-- [ ] **Step 3: Implement the minimum history menu**
+- [ ] **Step 3: Implement the minimum mobile collapse behavior**
 
-Add a compact top-bar history panel that:
-- lists local sessions
-- marks the active one
-- allows switching
-- includes a “clear all conversations” action
-- confirms before destructive clearing
-
-Do not add side drawers or heavy panels unless required by the final layout.
+Add:
+- a mobile-only history toggle in the top bar
+- a collapsible sidebar on small screens
+- close-on-select behavior for mobile
+- a light backdrop only if needed to keep the interaction clear
 
 - [ ] **Step 4: Re-run the relevant tests**
 
 Run: `node --test test/layout-contract.spec.js test/frontend-state.spec.js`
 Expected: PASS
 
-- [ ] **Step 5: Commit the history controls**
+- [ ] **Step 5: Commit the sidebar collapse behavior**
 
 ```bash
 git add public/index.html public/styles.css public/app.js test/layout-contract.spec.js test/frontend-state.spec.js
-git commit -m "feat: add local session history controls"
+git commit -m "feat: add responsive sidebar history controls"
 ```
 
-## Task 6: Persist On Load, Mutate, And Reset Paths
+## Task 6: Re-run Full Verification And Update Docs If Needed
 
 **Files:**
-- Modify: `public/app.js`
-- Modify: `public/lib/local-sessions.js`
-- Modify: `test/frontend-state.spec.js`
-
-- [ ] **Step 1: Write the failing persistence lifecycle tests**
-
-```js
-test("boot restores saved sessions before the first render", () => {
-  // Assert a pure init helper restores saved store data.
-});
-
-test("message sends and resets persist the updated active session store", () => {
-  // Assert store persistence is called on meaningful mutations.
-});
-```
-
-- [ ] **Step 2: Run the frontend-state test to verify it fails**
-
-Run: `node --test test/frontend-state.spec.js`
-Expected: FAIL because boot-time and mutation persistence are incomplete.
-
-- [ ] **Step 3: Implement the minimum lifecycle persistence**
-
-Ensure `public/app.js`:
-- restores local sessions after config load
-- persists after session creation, switching, sending, reset, model change, and clear-all
-- degrades safely if localStorage is unavailable
-
-- [ ] **Step 4: Re-run the frontend-state test**
-
-Run: `node --test test/frontend-state.spec.js`
-Expected: PASS
-
-- [ ] **Step 5: Commit the lifecycle persistence**
-
-```bash
-git add public/app.js public/lib/local-sessions.js test/frontend-state.spec.js
-git commit -m "fix: persist local session lifecycle"
-```
-
-## Task 7: Run Full Verification And Update Docs If Needed
-
 **Files:**
 - Modify: `README.md` (only if the visible usage flow materially changed)
 

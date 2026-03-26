@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildSessionTitle,
   buildInitialSessionStore,
   clearAllSessions,
   createEmptySession,
+  formatSessionUpdatedLabel,
 } from "../public/lib/local-sessions.js";
 
 test("buildInitialSessionStore restores multiple local sessions and the active session id", () => {
@@ -94,4 +96,43 @@ test("createEmptySession derives a lightweight default shape for new chats", () 
     modelId: "@cf/zai-org/glm-4.7-flash",
     expandedCodeBlocks: {},
   });
+});
+
+test("buildSessionTitle uses the first user message and strips markdown-like noise", () => {
+  const title = buildSessionTitle([
+    {
+      role: "user",
+      content: '##  "请帮我把这个 Cloudflare Worker 聊天站点重构一下，并清理 UI 文案"  ',
+    },
+    {
+      role: "user",
+      content: "后续追问不应该改变标题",
+    },
+  ]);
+
+  assert.equal(title, "请帮我把这个 Cloudflare Wor…");
+});
+
+test("formatSessionUpdatedLabel prefers relative labels for recent sessions", () => {
+  const now = new Date(2026, 2, 26, 15, 0).getTime();
+
+  assert.equal(formatSessionUpdatedLabel(now - 30_000, now), "刚刚");
+  assert.equal(formatSessionUpdatedLabel(now - 10 * 60_000, now), "10 分钟前");
+});
+
+test("formatSessionUpdatedLabel uses calendar-aware labels for older sessions", () => {
+  const now = new Date(2026, 2, 26, 15, 0).getTime();
+
+  assert.equal(
+    formatSessionUpdatedLabel(new Date(2026, 2, 26, 9, 5).getTime(), now),
+    "今天 09:05",
+  );
+  assert.equal(
+    formatSessionUpdatedLabel(new Date(2026, 2, 25, 21, 8).getTime(), now),
+    "昨天 21:08",
+  );
+  assert.equal(
+    formatSessionUpdatedLabel(new Date(2026, 1, 14, 18, 20).getTime(), now),
+    "02-14 18:20",
+  );
 });

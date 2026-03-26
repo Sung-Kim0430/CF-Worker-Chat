@@ -25,6 +25,16 @@
     <div class="page-shell">
       <header id="topBar" class="top-bar panel">
         <div class="top-bar-controls">
+          <button
+            id="sessionSidebarToggle"
+            class="ghost-button compact-button mobile-only-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="sessionSidebar"
+          >
+            对话记录
+          </button>
+
           <div id="modelPicker" class="model-picker">
             <div
               id="featuredModelList"
@@ -41,21 +51,6 @@
               更多模型
             </button>
           </div>
-
-          <div class="top-bar-actions">
-            <button
-              id="sessionMenuToggle"
-              class="ghost-button compact-button"
-              type="button"
-              aria-expanded="false"
-              aria-controls="sessionMenuPanel"
-            >
-              对话记录
-            </button>
-            <button id="newChatButton" class="primary-button compact-button" type="button">
-              新对话
-            </button>
-          </div>
         </div>
 
         <section id="modelCatalogPanel" class="floating-panel model-catalog-panel" hidden>
@@ -70,20 +65,6 @@
           <div id="modelCatalogList" class="model-catalog-list"></div>
         </section>
 
-        <section id="sessionMenuPanel" class="floating-panel session-menu-panel" hidden>
-          <div class="session-menu-heading">
-            <strong>本地对话</strong>
-            <button
-              id="clearAllSessionsButton"
-              class="ghost-button compact-button danger-button"
-              type="button"
-            >
-              清空全部
-            </button>
-          </div>
-          <div id="sessionList" class="session-list"></div>
-        </section>
-
         <div
           id="chatStatus"
           class="visually-hidden"
@@ -96,7 +77,27 @@
         </div>
       </header>
 
-      <main id="chatWorkspace" class="chat-workspace">
+      <main id="chatWorkspace" class="chat-layout">
+        <div id="sessionSidebarBackdrop" class="session-sidebar-backdrop" hidden></div>
+
+        <aside id="sessionSidebar" class="session-sidebar panel" data-open="false">
+          <div class="session-sidebar-top">
+            <button id="newChatButton" class="primary-button" type="button">新对话</button>
+          </div>
+
+          <div id="sessionList" class="session-list"></div>
+
+          <div class="session-sidebar-footer">
+            <button
+              id="clearAllSessionsButton"
+              class="ghost-button compact-button danger-button"
+              type="button"
+            >
+              清空全部
+            </button>
+          </div>
+        </aside>
+
         <section class="chat-column panel">
           <div id="chatHistory" class="chat-history" aria-live="polite"></div>
 

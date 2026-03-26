@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-test("index.html exposes the minimal top-bar chat shell anchors", () => {
+test("index.html exposes the sidebar history shell anchors", () => {
   const html = fs.readFileSync("public/index.html", "utf8");
 
   for (const id of [
@@ -14,8 +14,8 @@ test("index.html exposes the minimal top-bar chat shell anchors", () => {
     "modelCatalogPanel",
     "modelSearchInput",
     "modelCatalogList",
-    "sessionMenuToggle",
-    "sessionMenuPanel",
+    "sessionSidebar",
+    "sessionSidebarToggle",
     "sessionList",
     "newChatButton",
     "clearAllSessionsButton",

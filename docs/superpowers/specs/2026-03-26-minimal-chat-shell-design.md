@@ -6,8 +6,9 @@ This design replaces the current “product demo workspace” shell with a much 
 
 The approved direction is:
 
-- a **single-column chat layout**
-- **model switching moved into the top bar**
+- a **left-sidebar + main chat** layout on desktop
+- **model switching kept in the top bar**
+- a **collapsible history sidebar on mobile**
 - **client-side local session persistence** for multiple conversations
 - **manual clearing of all local conversations**
 - removal of marketing-style and guidance-heavy copy so the page primarily exposes:
@@ -64,18 +65,16 @@ It should not feel like:
 
 ### Layout
 
-The page becomes a **single main chat column**.
+The page becomes a **two-zone workspace on desktop**:
 
-The existing right rail is removed. Its useful controls are redistributed into a compact top bar:
+- a left sidebar for local conversation management
+- a main chat column for the active conversation
 
-- model selection
-- conversation history entry point
-- new conversation
+The history UI no longer lives in a top-bar popover. Instead:
 
-The rest of the page is dedicated to:
-
-- chat history
-- composer
+- the **top bar keeps model switching**
+- the **left sidebar owns session history**
+- mobile collapses that sidebar behind a toggle
 
 ### Top Bar Principles
 
@@ -84,8 +83,7 @@ The top bar should be a compact control strip, not a banner.
 It should contain:
 
 - a model switcher
-- a “history” trigger
-- a “new chat” trigger
+- a mobile-only history toggle when the sidebar is collapsed
 
 It should not contain:
 
@@ -168,7 +166,7 @@ These values are implementation defaults and can be adjusted later if usage show
 
 ### New Chat
 
-The top bar should provide a direct “new chat” action.
+The left sidebar should provide a direct “new chat” action near the top.
 
 When triggered:
 
@@ -177,15 +175,24 @@ When triggered:
 - keep the current model selection behavior predictable
 - focus the input
 
-### History Entry
+### History Sidebar
 
-The top bar should provide a compact history trigger that opens a lightweight list or popover.
+The left sidebar should show the local session list directly on desktop and collapse on mobile.
 
 That history UI should show:
 
 - local session title
 - last updated time
 - active-session indication
+- message count
+
+The title should be **fixed from the first user message** and should not change as the conversation continues.
+
+The title renderer should also:
+
+- strip obvious Markdown noise
+- normalize whitespace
+- use smarter truncation so the sidebar remains compact without making titles unreadable
 
 Switching sessions should:
 
@@ -197,7 +204,7 @@ Switching sessions should:
 
 The user requested a manual “clear all conversations” function.
 
-This should be available inside the history UI rather than as persistent loud chrome in the main layout.
+This should live at the bottom of the history sidebar rather than in the main chat area.
 
 Behavior:
 
@@ -235,6 +242,41 @@ Recommended behavior:
 - avoid a large always-visible model explanation card
 
 This preserves scalability without restoring dashboard clutter.
+
+## Conversation History Presentation Rules
+
+### Ordering
+
+The session list should remain sorted by **meaningful recent activity**, not by arbitrary UI state changes.
+
+That means:
+
+- new message activity updates ordering
+- content-changing session updates can move a session upward
+- pure UI-only changes such as code-block expansion should **not** reorder the history list
+
+### Time Labels
+
+The time label should be easier to scan than a raw timestamp.
+
+Recommended output:
+
+- 刚刚
+- N 分钟前
+- 今天 HH:mm
+- 昨天 HH:mm
+- MM-DD HH:mm
+
+### Active Session Styling
+
+The active session should be more recognizable without becoming visually loud.
+
+Recommended emphasis:
+
+- a cleaner border
+- a lighter background tint
+- a subtle left-side accent
+- slightly stronger title weight
 
 ## UI Elements To Remove Or Compress
 
@@ -305,7 +347,12 @@ The implementation should add or update automated coverage for:
    - all local sessions are removed
    - a fresh empty session is recreated
 
-4. **Regression safety**
+4. **Session list UX**
+   - fixed titles remain stable
+   - relative time labels format correctly
+   - UI-only state changes do not cause noisy reordering
+
+5. **Regression safety**
    - code block enhancements still work on completed replies
    - streaming path still avoids heavy HTML enhancement
 
