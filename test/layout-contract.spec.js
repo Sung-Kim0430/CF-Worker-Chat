@@ -101,8 +101,8 @@ test("styles.css keeps the active sidebar session understated and app-like", () 
 test("styles.css keeps featured model pills compact and low-noise", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
-  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*min-height:\s*32px/i);
-  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*border-radius:\s*14px/i);
+  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*min-height:\s*30px/i);
+  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*border-radius:\s*12px/i);
   assert.match(styles, /\.featured-model-list\s+\.model-choice\.active\s*\{[^}]*box-shadow:\s*none/i);
 });
 
@@ -144,4 +144,20 @@ test("styles.css centers desktop chat reading width for calmer conversation rhyt
   assert.match(styles, /\.chat-history-surface\s*\{[^}]*width:\s*min\(100%,\s*960px\)/i);
   assert.match(styles, /\.chat-composer-shell\s*\{[^}]*width:\s*min\(100%,\s*960px\)/i);
   assert.match(styles, /\.message-card\s*\{[^}]*max-width:\s*min\(82%,\s*74ch\)/i);
+});
+
+test("styles.css keeps the top bar low-chrome and focused on model switching", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.top-bar\s*\{[^}]*padding:\s*6px/i);
+  assert.match(styles, /\.model-picker\s*\{[^}]*padding:\s*3px 4px/i);
+  assert.match(styles, /#sessionSidebarToggle,\s*#modelCatalogToggle\s*\{[^}]*min-height:\s*32px/i);
+});
+
+test("styles.css keeps sidebar row actions quiet and precise", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-option-actions\s*\{[^}]*gap:\s*4px/i);
+  assert.match(styles, /\.session-inline-action\s*\{[^}]*min-height:\s*26px/i);
+  assert.match(styles, /\.session-inline-action\s*\{[^}]*border-radius:\s*9px/i);
 });

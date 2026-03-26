@@ -119,9 +119,9 @@ a:focus-visible {
   position: sticky;
   top: 14px;
   z-index: 30;
-  padding: 8px;
-  margin-bottom: 14px;
-  border-radius: 22px;
+  padding: 6px;
+  margin-bottom: 12px;
+  border-radius: 20px;
   border-color: rgba(15, 23, 42, 0.08);
   background:
     linear-gradient(180deg, rgba(251, 252, 254, 0.98), rgba(248, 250, 253, 0.96));
@@ -133,9 +133,9 @@ a:focus-visible {
 .top-bar-surface {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  padding: 4px;
+  padding: 3px;
 }
 
 .top-bar-controls,
@@ -144,7 +144,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -152,11 +152,11 @@ a:focus-visible {
   flex: 1;
   min-width: 0;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 4px 6px;
-  border-radius: 16px;
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  background: rgba(255, 255, 255, 0.72);
+  gap: 4px;
+  padding: 3px 4px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  background: rgba(255, 255, 255, 0.66);
   box-shadow: none;
 }
 
@@ -1018,11 +1018,11 @@ a:focus-visible {
 
 #sessionSidebarToggle,
 #modelCatalogToggle {
-  min-height: 34px;
-  padding: 6px 12px;
-  border-radius: 14px;
-  border-color: rgba(15, 23, 42, 0.06);
-  background: rgba(255, 255, 255, 0.76);
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  border-color: rgba(15, 23, 42, 0.05);
+  background: rgba(255, 255, 255, 0.68);
   box-shadow: none;
   color: var(--muted);
 }
@@ -1080,7 +1080,7 @@ a:focus-visible {
   flex: 1;
   min-width: 0;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 4px;
   overflow-x: auto;
   scrollbar-width: thin;
   scroll-behavior: smooth;
@@ -1089,11 +1089,11 @@ a:focus-visible {
 .featured-model-list .model-choice {
   width: auto;
   flex: 0 0 auto;
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  background: rgba(255, 255, 255, 0.74);
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.045);
+  background: rgba(255, 255, 255, 0.68);
   box-shadow: none;
 }
 
@@ -1103,7 +1103,7 @@ a:focus-visible {
 }
 
 .featured-model-list .model-choice strong {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 650;
 }
 
@@ -1240,8 +1240,13 @@ a:focus-visible {
 
 .session-option:hover {
   border-color: rgba(15, 23, 42, 0.06);
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.8);
   box-shadow: none;
+}
+
+.session-option:hover::before {
+  background: rgba(15, 23, 42, 0.14);
+  opacity: 0.38;
 }
 
 .session-option::before {
@@ -1380,10 +1385,10 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   opacity: 0;
-  padding-right: 6px;
+  padding-right: 4px;
   transition: opacity 0.18s ease;
 }
 
@@ -1395,20 +1400,24 @@ a:focus-visible {
 }
 
 .session-inline-action {
-  min-height: 28px;
-  padding: 4px 8px;
-  border-radius: 10px;
+  min-height: 26px;
+  padding: 3px 7px;
+  border-radius: 9px;
   border: 1px solid transparent;
-  background: rgba(241, 245, 249, 0.84);
+  background: rgba(241, 245, 249, 0.76);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   font-weight: 600;
 }
 
 .session-inline-action:hover {
   border-color: rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--ink);
+}
+
+.session-inline-action:active {
+  background: rgba(226, 232, 240, 0.92);
 }
 
 .session-inline-action:disabled {
