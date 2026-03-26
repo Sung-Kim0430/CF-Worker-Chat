@@ -341,6 +341,83 @@ test("filterModelCatalog matches label, provider and model id fragments", () => 
   assert.equal(app.filterModelCatalog(models, "不存在").length, 0);
 });
 
+test("filterSessionList matches session title, history content and model metadata", () => {
+  assert.equal(typeof app.filterSessionList, "function");
+
+  const sessions = [
+    {
+      id: "s1",
+      title: "Cloudflare Worker 重构",
+      modelId: "@cf/zai-org/glm-4.7-flash",
+      history: [
+        { role: "user", content: "请帮我把侧边栏做成更顺手的历史面板" },
+      ],
+    },
+    {
+      id: "s2",
+      title: "代码解释",
+      modelId: "@cf/openai/gpt-oss-20b",
+      history: [
+        { role: "user", content: "解释一下为什么 streaming 会闪烁" },
+      ],
+    },
+  ];
+  const models = [
+    {
+      id: "@cf/zai-org/glm-4.7-flash",
+      label: "GLM-4.7-Flash",
+      shortLabel: "GLM",
+      provider: "Zhipu AI",
+      family: "GLM",
+    },
+    {
+      id: "@cf/openai/gpt-oss-20b",
+      label: "GPT-OSS 20B",
+      shortLabel: "GPT-OSS",
+      provider: "OpenAI",
+      family: "GPT-OSS",
+    },
+  ];
+
+  assert.deepEqual(app.filterSessionList(sessions, "worker", models).map((session) => session.id), [
+    "s1",
+  ]);
+  assert.deepEqual(app.filterSessionList(sessions, "闪烁", models).map((session) => session.id), [
+    "s2",
+  ]);
+  assert.deepEqual(app.filterSessionList(sessions, "openai", models).map((session) => session.id), [
+    "s2",
+  ]);
+});
+
+test("highlightSearchMatches safely wraps matched fragments for sidebar search results", () => {
+  assert.equal(typeof app.highlightSearchMatches, "function");
+
+  const html = app.highlightSearchMatches(
+    'Cloudflare <Worker> 对话站点',
+    "worker",
+  );
+
+  assert.match(html, /Cloudflare &lt;<mark class="match-highlight">Worker<\/mark>&gt; 对话站点/);
+});
+
+test("buildSessionSearchSummary keeps the sidebar search status compact", () => {
+  assert.equal(typeof app.buildSessionSearchSummary, "function");
+
+  assert.equal(
+    app.buildSessionSearchSummary({ query: "", visibleCount: 12, totalCount: 12 }),
+    "12 个对话",
+  );
+  assert.equal(
+    app.buildSessionSearchSummary({ query: "worker", visibleCount: 3, totalCount: 12 }),
+    "3 / 12 匹配",
+  );
+  assert.equal(
+    app.buildSessionSearchSummary({ query: "worker", visibleCount: 0, totalCount: 12 }),
+    "0 / 12 匹配",
+  );
+});
+
 test("shouldSubmitFromKeyboardEvent avoids accidental send during IME composition", () => {
   assert.equal(typeof app.shouldSubmitFromKeyboardEvent, "function");
 

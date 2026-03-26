@@ -2,6 +2,7 @@ export const LOCAL_SESSION_STORAGE_KEY = "cf-worker-chat.local-sessions.v1";
 export const MAX_LOCAL_SESSIONS = 20;
 export const MAX_SESSION_MESSAGES = 100;
 const DEFAULT_SESSION_TITLE = "新对话";
+const MANUAL_SESSION_TITLE_MAX_UNITS = 40;
 
 function resolveNow(now = Date.now) {
   return typeof now === "function" ? Number(now()) : Number(now);
@@ -93,6 +94,17 @@ function normalizeSessionTitleSource(value = "") {
     .trim();
 }
 
+function normalizeSessionPreviewSource(value = "") {
+  return String(value || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/[*_~]+/g, "")
+    .replace(/^\s*(?:#{1,6}\s+|>\s+|[-*+]\s+|\d+[.)]\s+)/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getVisualWidth(character = "") {
   return /[\u1100-\u11ff\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]/u.test(character)
     ? 2
@@ -133,6 +145,42 @@ export function buildSessionTitle(history = [], fallback = DEFAULT_SESSION_TITLE
   return truncateSessionTitle(normalized, maxUnits);
 }
 
+export function sanitizeManualSessionTitle(
+  value = "",
+  fallback = DEFAULT_SESSION_TITLE,
+  maxUnits = MANUAL_SESSION_TITLE_MAX_UNITS,
+) {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return truncateSessionTitle(normalized, maxUnits);
+}
+
+export function getSessionPreviewText(
+  session = {},
+  fallback = "空白对话",
+  maxUnits = 52,
+) {
+  const history = Array.isArray(session.history) ? session.history : [];
+  const sourceMessage = [...history]
+    .reverse()
+    .find(
+      (message) =>
+        typeof message?.content === "string" &&
+        normalizeSessionPreviewSource(message.content),
+    );
+  const normalized = normalizeSessionPreviewSource(sourceMessage?.content || "");
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return truncateSessionTitle(normalized, maxUnits);
+}
+
 function normalizeModelId(modelId, defaultModelId, availableModelIds = []) {
   const normalized = typeof modelId === "string" && modelId.trim() ? modelId : "";
   const available = Array.isArray(availableModelIds) ? availableModelIds.filter(Boolean) : [];
@@ -154,6 +202,7 @@ export function createEmptySession(defaultModelId, now = Date.now) {
   return {
     id: `session-${timestamp}`,
     title: DEFAULT_SESSION_TITLE,
+    titleManuallyEdited: false,
     createdAt: timestamp,
     updatedAt: timestamp,
     history: [],
@@ -183,6 +232,7 @@ export function normalizeSession(
       typeof session.title === "string" && session.title.trim()
         ? session.title
         : buildSessionTitle(history),
+    titleManuallyEdited: Boolean(session.titleManuallyEdited),
     createdAt,
     updatedAt,
     history,
@@ -393,4 +443,37 @@ export function replaceSession(store = {}, nextSession = {}) {
     activeSessionId: store.activeSessionId || nextSession.id,
     sessions: trimSessions(nextSessions),
   };
+}
+
+export function renameSession(store = {}, sessionId = "", nextTitle = "") {
+  const currentSession = (store.sessions || []).find((session) => session.id === sessionId);
+
+  if (!currentSession) {
+    return store;
+  }
+
+  const sanitizedTitle = sanitizeManualSessionTitle(
+    nextTitle,
+    currentSession.title || DEFAULT_SESSION_TITLE,
+  );
+
+  return replaceSession(store, {
+    ...currentSession,
+    title: sanitizedTitle,
+    titleManuallyEdited: true,
+  });
+}
+
+export function restoreAutoSessionTitle(store = {}, sessionId = "") {
+  const currentSession = (store.sessions || []).find((session) => session.id === sessionId);
+
+  if (!currentSession) {
+    return store;
+  }
+
+  return replaceSession(store, {
+    ...currentSession,
+    title: buildSessionTitle(currentSession.history),
+    titleManuallyEdited: false,
+  });
 }

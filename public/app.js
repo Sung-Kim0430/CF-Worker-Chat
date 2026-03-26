@@ -19,9 +19,13 @@ import {
   clearAllSessions,
   createNextSessionStore,
   formatSessionUpdatedLabel,
+  getSessionPreviewText,
   persistSessionStore,
+  renameSession,
   replaceSession,
   restoreSessionStore,
+  restoreAutoSessionTitle,
+  sanitizeManualSessionTitle,
   setActiveSessionId,
 } from "./lib/local-sessions.js";
 
@@ -38,6 +42,9 @@ const state = {
   modelCatalogQuery: "",
   isCatalogOpen: false,
   isSessionSidebarOpen: false,
+  sessionSearchQuery: "",
+  renamingSessionId: null,
+  renamingSessionDraft: "",
   session: {
     phase: "booting",
   },
@@ -123,6 +130,94 @@ export function filterModelCatalog(models = [], query = "") {
 
     return haystack.includes(normalizedQuery);
   });
+}
+
+function normalizeSearchQuery(query = "") {
+  return String(query || "").trim().toLowerCase();
+}
+
+export function filterSessionList(sessions = [], query = "", models = []) {
+  const normalizedQuery = normalizeSearchQuery(query);
+
+  if (!normalizedQuery) {
+    return [...sessions];
+  }
+
+  const modelLookup = new Map(
+    (Array.isArray(models) ? models : [])
+      .filter((model) => model?.id)
+      .map((model) => [model.id, model]),
+  );
+
+  return sessions.filter((session) => {
+    const model = modelLookup.get(session?.modelId) ?? null;
+    const historyText = Array.isArray(session?.history)
+      ? session.history
+          .map((message) => (typeof message?.content === "string" ? message.content : ""))
+          .filter(Boolean)
+          .join(" ")
+      : "";
+    const haystack = [
+      session?.title,
+      session?.modelId,
+      model?.label,
+      model?.shortLabel,
+      model?.provider,
+      model?.family,
+      historyText,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedQuery);
+  });
+}
+
+export function highlightSearchMatches(value = "", query = "") {
+  const source = String(value ?? "");
+  const normalizedQuery = normalizeSearchQuery(query);
+
+  if (!normalizedQuery) {
+    return escapeHtml(source);
+  }
+
+  const normalizedSource = source.toLowerCase();
+  let cursor = 0;
+  let result = "";
+
+  while (cursor < source.length) {
+    const nextIndex = normalizedSource.indexOf(normalizedQuery, cursor);
+
+    if (nextIndex === -1) {
+      result += escapeHtml(source.slice(cursor));
+      break;
+    }
+
+    result += escapeHtml(source.slice(cursor, nextIndex));
+    result += `<mark class="match-highlight">${escapeHtml(
+      source.slice(nextIndex, nextIndex + normalizedQuery.length),
+    )}</mark>`;
+    cursor = nextIndex + normalizedQuery.length;
+  }
+
+  return result || escapeHtml(source);
+}
+
+export function buildSessionSearchSummary({
+  query = "",
+  visibleCount = 0,
+  totalCount = 0,
+} = {}) {
+  const normalizedQuery = normalizeSearchQuery(query);
+  const safeVisibleCount = Math.max(0, Number(visibleCount) || 0);
+  const safeTotalCount = Math.max(0, Number(totalCount) || 0);
+
+  if (!normalizedQuery) {
+    return `${safeTotalCount} 个对话`;
+  }
+
+  return `${safeVisibleCount} / ${safeTotalCount} 匹配`;
 }
 
 export function getModelCatalogPreviewText(
@@ -449,6 +544,23 @@ function getAvailableModelIds() {
     .filter(Boolean);
 }
 
+function getModelMetaById(modelId) {
+  return getAllModels().find((model) => model.id === modelId) ?? null;
+}
+
+function getCompactModelLabel(modelId) {
+  const model = getModelMetaById(modelId);
+  return model?.shortLabel || model?.label || "";
+}
+
+function isMobileSidebarViewport() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 960px)").matches
+  );
+}
+
 function getSafeLocalStorage() {
   if (typeof window === "undefined") {
     return null;
@@ -459,6 +571,16 @@ function getSafeLocalStorage() {
   } catch {
     return null;
   }
+}
+
+function syncDocumentSurfaceState() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const overlayOpen = state.isSessionSidebarOpen && isMobileSidebarViewport();
+  document.body.dataset.sessionSidebarOpen = overlayOpen ? "true" : "false";
+  document.body.style.overflow = overlayOpen ? "hidden" : "";
 }
 
 function getActiveSession() {
@@ -522,8 +644,9 @@ function touchActiveSession({ preserveTitle = false, updateTimestamp = false } =
     updatedAt: updateTimestamp ? Date.now() : activeSession.updatedAt || Date.now(),
   };
 
-  if (!preserveTitle) {
+  if (!preserveTitle && !activeSession.titleManuallyEdited) {
     nextSession.title = buildSessionTitle(nextSession.history);
+    nextSession.titleManuallyEdited = false;
   }
 
   state.sessionStore = {
@@ -542,6 +665,9 @@ function createNewChatSession() {
     now: Date.now,
   });
   state.isSessionSidebarOpen = false;
+  state.sessionSearchQuery = "";
+  state.renamingSessionId = null;
+  state.renamingSessionDraft = "";
   syncStateFromActiveSession({ resetRenderSnapshot: true });
   persistLocalSessionStore();
 }
@@ -550,6 +676,8 @@ function switchToSession(sessionId) {
   state.sessionStore = setActiveSessionId(state.sessionStore, sessionId);
   state.isSessionSidebarOpen = false;
   state.isCatalogOpen = false;
+  state.renamingSessionId = null;
+  state.renamingSessionDraft = "";
   syncStateFromActiveSession({ resetRenderSnapshot: true });
   persistLocalSessionStore();
 }
@@ -561,8 +689,94 @@ function clearAllLocalSessions() {
   });
   state.isCatalogOpen = false;
   state.isSessionSidebarOpen = false;
+  state.sessionSearchQuery = "";
+  state.renamingSessionId = null;
+  state.renamingSessionDraft = "";
   syncStateFromActiveSession({ resetRenderSnapshot: true });
   persistLocalSessionStore();
+}
+
+function openSessionSidebar() {
+  state.isSessionSidebarOpen = true;
+  state.isCatalogOpen = false;
+  renderOperatorPanel();
+}
+
+function closeSessionSidebar() {
+  if (!state.isSessionSidebarOpen) {
+    return;
+  }
+
+  state.isSessionSidebarOpen = false;
+  renderOperatorPanel();
+}
+
+function startSessionRename(sessionId) {
+  const session = (state.sessionStore.sessions || []).find((item) => item.id === sessionId);
+
+  if (!session || state.isSending) {
+    return;
+  }
+
+  state.renamingSessionId = session.id;
+  state.renamingSessionDraft = session.title || "新对话";
+  renderSessionList();
+
+  requestAnimationFrame(() => {
+    const input = elements?.sessionList?.querySelector("[data-session-rename-input]");
+    input?.focus();
+    input?.select();
+  });
+}
+
+function cancelSessionRename() {
+  state.renamingSessionId = null;
+  state.renamingSessionDraft = "";
+  renderSessionList();
+}
+
+function commitSessionRename(sessionId) {
+  const draft = state.renamingSessionDraft;
+
+  if (!draft.trim()) {
+    cancelSessionRename();
+    return;
+  }
+
+  const sanitizedTitle = sanitizeManualSessionTitle(draft);
+  state.sessionStore = renameSession(state.sessionStore, sessionId, sanitizedTitle);
+  state.renamingSessionId = null;
+  state.renamingSessionDraft = "";
+  syncStateFromActiveSession();
+  persistLocalSessionStore();
+  renderSessionList();
+}
+
+function restoreSessionTitle(sessionId) {
+  state.sessionStore = restoreAutoSessionTitle(state.sessionStore, sessionId);
+  state.renamingSessionId = null;
+  state.renamingSessionDraft = "";
+  syncStateFromActiveSession();
+  persistLocalSessionStore();
+  renderSessionList();
+}
+
+function clearSessionSearch({ focusInput = false } = {}) {
+  if (!state.sessionSearchQuery) {
+    if (focusInput) {
+      elements?.sessionSearchInput?.focus();
+    }
+    return;
+  }
+
+  state.sessionSearchQuery = "";
+  renderSessionList();
+
+  if (focusInput) {
+    requestAnimationFrame(() => {
+      elements?.sessionSearchInput?.focus();
+    });
+  }
 }
 
 function isNearBottom(container) {
@@ -1059,44 +1273,165 @@ function renderModelCatalog() {
 function renderSessionList() {
   const activeSessionId = state.sessionStore.activeSessionId;
   const sessions = state.sessionStore.sessions || [];
+  const visibleSessions = filterSessionList(
+    sessions,
+    state.sessionSearchQuery,
+    getAllModels(),
+  );
   const sessionActionsDisabled = state.isSending;
+  const searchSummary = buildSessionSearchSummary({
+    query: state.sessionSearchQuery,
+    visibleCount: visibleSessions.length,
+    totalCount: sessions.length,
+  });
 
   elements.sessionSidebarToggle.setAttribute(
     "aria-expanded",
     state.isSessionSidebarOpen ? "true" : "false",
   );
   elements.sessionSidebar.dataset.open = state.isSessionSidebarOpen ? "true" : "false";
-  elements.sessionSidebarBackdrop.hidden = !state.isSessionSidebarOpen;
+  elements.sessionSidebarBackdrop.dataset.open = state.isSessionSidebarOpen ? "true" : "false";
   elements.clearAllSessionsButton.disabled =
     sessionActionsDisabled || sessions.length === 0;
   elements.newChatButton.disabled = sessionActionsDisabled;
 
-  elements.sessionList.innerHTML = sessions.length
-    ? sessions
+  elements.sessionSidebarCloseButton.disabled = false;
+  if (elements.sessionSearchInput.value !== state.sessionSearchQuery) {
+    elements.sessionSearchInput.value = state.sessionSearchQuery;
+  }
+  elements.sessionSearchClearButton.hidden = !state.sessionSearchQuery;
+  elements.sessionSearchClearButton.disabled = !state.sessionSearchQuery;
+  elements.sessionSearchMeta.textContent = searchSummary;
+  syncDocumentSurfaceState();
+
+  elements.sessionList.innerHTML = visibleSessions.length
+    ? visibleSessions
         .map((session) => {
           const isActive = session.id === activeSessionId;
           const messageCount = session.history.length;
           const timeLabel = formatSessionUpdatedLabel(session.updatedAt, Date.now());
+          const previewText = getSessionPreviewText(session);
+          const metaLabel = [messageCount > 0 ? `${messageCount} 条消息` : "空白对话", getCompactModelLabel(session.modelId)]
+            .filter(Boolean)
+            .join(" · ");
+          const isRenaming = state.renamingSessionId === session.id;
+          const titleHtml = highlightSearchMatches(
+            session.title || "新对话",
+            state.sessionSearchQuery,
+          );
+          const previewHtml = highlightSearchMatches(
+            previewText,
+            state.sessionSearchQuery,
+          );
+          const metaHtml = highlightSearchMatches(
+            metaLabel,
+            state.sessionSearchQuery,
+          );
+
+          if (isRenaming) {
+            return `
+              <article
+                class="session-option${isActive ? " active" : ""}"
+                data-session-id="${escapeHtml(session.id)}"
+                data-renaming="true"
+              >
+                <form class="session-rename-form" data-session-rename-form data-session-id="${escapeHtml(
+                  session.id,
+                )}">
+                  <label class="visually-hidden" for="session-rename-${escapeHtml(session.id)}">
+                    重命名对话
+                  </label>
+                  <input
+                    id="session-rename-${escapeHtml(session.id)}"
+                    class="session-rename-input"
+                    data-session-rename-input
+                    data-session-id="${escapeHtml(session.id)}"
+                    type="text"
+                    maxlength="80"
+                    value="${escapeHtml(state.renamingSessionDraft)}"
+                    placeholder="输入对话标题"
+                    autocomplete="off"
+                    ${sessionActionsDisabled ? "disabled" : ""}
+                  />
+                  <div class="session-rename-actions">
+                    <button
+                      class="session-inline-action session-inline-action-primary"
+                      type="submit"
+                      ${sessionActionsDisabled ? "disabled" : ""}
+                    >
+                      保存
+                    </button>
+                    <button
+                      class="session-inline-action"
+                      type="button"
+                      data-session-action="rename-cancel"
+                      data-session-id="${escapeHtml(session.id)}"
+                      ${sessionActionsDisabled ? "disabled" : ""}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </form>
+                <p class="session-rename-hint">按 Enter 保存，Esc 取消</p>
+              </article>
+            `;
+          }
 
           return `
-            <button
+            <article
               class="session-option${isActive ? " active" : ""}"
-              type="button"
               data-session-id="${escapeHtml(session.id)}"
-              ${sessionActionsDisabled ? "disabled" : ""}
             >
-              <span class="session-option-title-row">
-                <strong>${escapeHtml(session.title || "新对话")}</strong>
-                <small>${escapeHtml(timeLabel)}</small>
-              </span>
-              <span class="session-option-copy">${escapeHtml(
-                messageCount > 0 ? `${messageCount} 条消息` : "空白对话",
-              )}</span>
-            </button>
+              <button
+                class="session-option-trigger"
+                type="button"
+                data-session-id="${escapeHtml(session.id)}"
+                aria-current="${isActive ? "true" : "false"}"
+                title="${escapeHtml(session.title || "新对话")}"
+                ${sessionActionsDisabled ? "disabled" : ""}
+              >
+                <span class="session-option-title-row">
+                  <strong>${titleHtml}</strong>
+                  <small>${escapeHtml(timeLabel)}</small>
+                </span>
+                <span class="session-option-copy">${previewHtml}</span>
+                <span class="session-option-meta">${metaHtml}</span>
+              </button>
+              <div class="session-option-actions">
+                <button
+                  class="session-inline-action"
+                  type="button"
+                  data-session-action="rename"
+                  data-session-id="${escapeHtml(session.id)}"
+                  ${sessionActionsDisabled ? "disabled" : ""}
+                >
+                  改名
+                </button>
+                ${
+                  session.titleManuallyEdited
+                    ? `
+                <button
+                  class="session-inline-action"
+                  type="button"
+                  data-session-action="restore-auto-title"
+                  data-session-id="${escapeHtml(session.id)}"
+                  aria-label="恢复自动标题"
+                  ${sessionActionsDisabled ? "disabled" : ""}
+                >
+                  自动标题
+                </button>`
+                    : ""
+                }
+              </div>
+            </article>
           `;
         })
         .join("")
-    : `<p class="catalog-empty">还没有本地对话。</p>`;
+    : `<p class="catalog-empty">${
+        state.sessionSearchQuery
+          ? "没有找到匹配的对话，试试标题关键词、模型名或对话内容。"
+          : "还没有本地对话。"
+      }</p>`;
 }
 
 function renderMessages() {
@@ -1470,9 +1805,39 @@ function bindEvents() {
   });
 
   elements.sessionSidebarToggle.addEventListener("click", () => {
-    state.isSessionSidebarOpen = !state.isSessionSidebarOpen;
-    state.isCatalogOpen = false;
-    renderOperatorPanel();
+    if (state.isSessionSidebarOpen) {
+      closeSessionSidebar();
+      return;
+    }
+
+    openSessionSidebar();
+  });
+
+  elements.sessionSidebarCloseButton.addEventListener("click", () => {
+    closeSessionSidebar();
+  });
+
+  elements.sessionSearchInput.addEventListener("input", (event) => {
+    state.sessionSearchQuery = event.target.value;
+    renderSessionList();
+  });
+
+  elements.sessionSearchInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    if (!state.sessionSearchQuery) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    clearSessionSearch({ focusInput: true });
+  });
+
+  elements.sessionSearchClearButton.addEventListener("click", () => {
+    clearSessionSearch({ focusInput: true });
   });
 
   elements.newChatButton.addEventListener("click", () => {
@@ -1492,7 +1857,27 @@ function bindEvents() {
   });
 
   elements.sessionList.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-session-id]");
+    const actionButton = event.target.closest("[data-session-action]");
+
+    if (actionButton) {
+      const { sessionAction, sessionId } = actionButton.dataset;
+
+      if (sessionAction === "rename") {
+        startSessionRename(sessionId);
+      }
+
+      if (sessionAction === "restore-auto-title") {
+        restoreSessionTitle(sessionId);
+      }
+
+      if (sessionAction === "rename-cancel") {
+        cancelSessionRename();
+      }
+
+      return;
+    }
+
+    const button = event.target.closest(".session-option-trigger[data-session-id]");
 
     if (!button || state.isSending) {
       return;
@@ -1507,6 +1892,40 @@ function bindEvents() {
     renderOperatorPanel();
     updateSessionStatus();
     elements.userInput.focus();
+  });
+
+  elements.sessionList.addEventListener("submit", (event) => {
+    const form = event.target.closest("[data-session-rename-form]");
+
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+    commitSessionRename(form.dataset.sessionId);
+  });
+
+  elements.sessionList.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-session-rename-input]");
+
+    if (!input) {
+      return;
+    }
+
+    state.renamingSessionDraft = input.value;
+  });
+
+  elements.sessionList.addEventListener("keydown", (event) => {
+    const input = event.target.closest("[data-session-rename-input]");
+
+    if (!input) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelSessionRename();
+    }
   });
 
   elements.clearAllSessionsButton.addEventListener("click", () => {
@@ -1535,12 +1954,7 @@ function bindEvents() {
   });
 
   elements.sessionSidebarBackdrop.addEventListener("click", () => {
-    if (!state.isSessionSidebarOpen) {
-      return;
-    }
-
-    state.isSessionSidebarOpen = false;
-    renderOperatorPanel();
+    closeSessionSidebar();
   });
 
   elements.chatHistory.addEventListener("click", async (event) => {
@@ -1571,6 +1985,31 @@ function bindEvents() {
       updateCopyButtonState(button, "复制失败");
     }
   });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    if (state.renamingSessionId) {
+      cancelSessionRename();
+      return;
+    }
+
+    if (state.isCatalogOpen) {
+      state.isCatalogOpen = false;
+      renderOperatorPanel();
+      return;
+    }
+
+    if (state.isSessionSidebarOpen) {
+      closeSessionSidebar();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    syncDocumentSurfaceState();
+  });
 }
 
 async function initApp() {
@@ -1588,6 +2027,10 @@ async function initApp() {
     sessionList: document.getElementById("sessionList"),
     sessionSidebar: document.getElementById("sessionSidebar"),
     sessionSidebarBackdrop: document.getElementById("sessionSidebarBackdrop"),
+    sessionSidebarCloseButton: document.getElementById("sessionSidebarCloseButton"),
+    sessionSearchInput: document.getElementById("sessionSearchInput"),
+    sessionSearchClearButton: document.getElementById("sessionSearchClearButton"),
+    sessionSearchMeta: document.getElementById("sessionSearchMeta"),
     sessionSidebarToggle: document.getElementById("sessionSidebarToggle"),
     clearAllSessionsButton: document.getElementById("clearAllSessionsButton"),
     userInput: document.getElementById("userInput"),

@@ -6,6 +6,9 @@ import {
   clearAllSessions,
   createEmptySession,
   formatSessionUpdatedLabel,
+  getSessionPreviewText,
+  renameSession,
+  restoreAutoSessionTitle,
 } from "../public/lib/local-sessions.js";
 
 test("buildInitialSessionStore restores multiple local sessions and the active session id", () => {
@@ -90,6 +93,7 @@ test("createEmptySession derives a lightweight default shape for new chats", () 
   assert.deepEqual(session, {
     id: "session-1710000000000",
     title: "新对话",
+    titleManuallyEdited: false,
     createdAt: 1710000000000,
     updatedAt: 1710000000000,
     history: [],
@@ -135,4 +139,82 @@ test("formatSessionUpdatedLabel uses calendar-aware labels for older sessions", 
     formatSessionUpdatedLabel(new Date(2026, 1, 14, 18, 20).getTime(), now),
     "02-14 18:20",
   );
+});
+
+test("renameSession keeps ordering timestamps stable while persisting a manual title", () => {
+  const store = {
+    activeSessionId: "s2",
+    sessions: [
+      {
+        id: "s2",
+        title: "原始标题",
+        titleManuallyEdited: false,
+        createdAt: 1710000002000,
+        updatedAt: 1710000003000,
+        modelId: "@cf/zai-org/glm-4.7-flash",
+        history: [{ role: "user", content: "帮我整理 Cloudflare Worker 聊天站点", createdAt: 1710000003000 }],
+        expandedCodeBlocks: {},
+      },
+      {
+        id: "s1",
+        title: "更早的会话",
+        titleManuallyEdited: false,
+        createdAt: 1710000000000,
+        updatedAt: 1710000001000,
+        modelId: "@cf/zai-org/glm-4.7-flash",
+        history: [],
+        expandedCodeBlocks: {},
+      },
+    ],
+  };
+
+  const renamed = renameSession(store, "s2", "  我的固定标题  ");
+
+  assert.equal(renamed.activeSessionId, "s2");
+  assert.equal(renamed.sessions[0].id, "s2");
+  assert.equal(renamed.sessions[0].title, "我的固定标题");
+  assert.equal(renamed.sessions[0].titleManuallyEdited, true);
+  assert.equal(renamed.sessions[0].updatedAt, 1710000003000);
+});
+
+test("getSessionPreviewText prefers the latest meaningful message and strips markdown noise", () => {
+  const preview = getSessionPreviewText({
+    history: [
+      { role: "user", content: "第一条消息" },
+      { role: "assistant", content: "```js\nconst answer = 42;\n```" },
+      { role: "assistant", content: '> **结果**：已经帮你整理完成，并保留了主要步骤。' },
+    ],
+  });
+
+  assert.equal(preview, "结果：已经帮你整理完成，并保留了主要步骤。");
+});
+
+test("restoreAutoSessionTitle recalculates the title from history and clears the manual flag", () => {
+  const store = {
+    activeSessionId: "s1",
+    sessions: [
+      {
+        id: "s1",
+        title: "我的固定标题",
+        titleManuallyEdited: true,
+        createdAt: 1710000000000,
+        updatedAt: 1710000003000,
+        modelId: "@cf/zai-org/glm-4.7-flash",
+        history: [
+          {
+            role: "user",
+            content: "请把这个 Cloudflare Worker 对话站点继续做得更简洁一些",
+            createdAt: 1710000001000,
+          },
+        ],
+        expandedCodeBlocks: {},
+      },
+    ],
+  };
+
+  const restored = restoreAutoSessionTitle(store, "s1");
+
+  assert.equal(restored.sessions[0].title, "请把这个 Cloudflare Worker…");
+  assert.equal(restored.sessions[0].titleManuallyEdited, false);
+  assert.equal(restored.sessions[0].updatedAt, 1710000003000);
 });

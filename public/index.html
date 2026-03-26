@@ -78,11 +78,48 @@
       </header>
 
       <main id="chatWorkspace" class="chat-layout">
-        <div id="sessionSidebarBackdrop" class="session-sidebar-backdrop" hidden></div>
+        <div
+          id="sessionSidebarBackdrop"
+          class="session-sidebar-backdrop"
+          data-open="false"
+        ></div>
 
         <aside id="sessionSidebar" class="session-sidebar panel" data-open="false">
           <div class="session-sidebar-top">
-            <button id="newChatButton" class="primary-button" type="button">新对话</button>
+            <div class="session-sidebar-actions">
+              <button id="newChatButton" class="primary-button" type="button">新对话</button>
+              <button
+                id="sessionSidebarCloseButton"
+                class="ghost-button compact-button mobile-only-button"
+                type="button"
+              >
+                收起
+              </button>
+            </div>
+
+            <div class="session-search-toolbar">
+              <div class="session-search-field">
+                <label class="visually-hidden" for="sessionSearchInput">搜索对话</label>
+                <input
+                  id="sessionSearchInput"
+                  class="session-search-input"
+                  type="search"
+                  placeholder="搜索标题、内容或模型"
+                  autocomplete="off"
+                  inputmode="search"
+                />
+                <button
+                  id="sessionSearchClearButton"
+                  class="ghost-button compact-button session-search-clear-button"
+                  type="button"
+                  aria-label="清除对话搜索"
+                  hidden
+                >
+                  清除
+                </button>
+              </div>
+              <p id="sessionSearchMeta" class="session-search-meta" aria-live="polite"></p>
+            </div>
           </div>
 
           <div id="sessionList" class="session-list"></div>
