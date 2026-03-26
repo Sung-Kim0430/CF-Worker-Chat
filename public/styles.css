@@ -1180,16 +1180,16 @@ a:focus-visible {
   width: auto;
   flex: 0 0 auto;
   min-height: 30px;
-  padding: 5px 9px;
+  padding: 4px 8px;
   border-radius: 12px;
   border: 1px solid rgba(15, 23, 42, 0.045);
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.62);
   box-shadow: none;
 }
 
 .featured-model-list .model-choice:hover {
   border-color: rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .featured-model-list .model-choice strong {
@@ -1451,7 +1451,7 @@ a:focus-visible {
 .session-option small {
   margin-top: 0;
   flex: 0 0 auto;
-  max-width: 96px;
+  max-width: 88px;
   color: rgba(100, 116, 139, 0.88);
   font-size: 0.72rem;
   line-height: 1.25;
@@ -1482,8 +1482,8 @@ a:focus-visible {
 .session-option-copy {
   display: -webkit-box;
   margin-top: 2px;
-  font-size: 0.78rem;
-  color: rgba(71, 85, 105, 0.92);
+  font-size: 0.76rem;
+  color: rgba(71, 85, 105, 0.86);
   line-height: 1.4;
   overflow: hidden;
   -webkit-box-orient: vertical;
@@ -1493,8 +1493,8 @@ a:focus-visible {
 .session-option-meta {
   display: block;
   margin-top: 3px;
-  color: rgba(100, 116, 139, 0.9);
-  font-size: 0.69rem;
+  color: rgba(100, 116, 139, 0.82);
+  font-size: 0.67rem;
 }
 
 .session-option.active {
@@ -1845,7 +1845,11 @@ a:focus-visible {
 
   .top-bar,
   .chat-column {
-    padding: 14px;
+    padding: 12px;
+  }
+
+  .top-bar-surface {
+    gap: 4px;
   }
 
   #userInput {
@@ -1867,6 +1871,11 @@ a:focus-visible {
 
   .featured-model-list .model-choice {
     width: auto;
+  }
+
+  #sessionSidebarToggle,
+  #modelCatalogToggle {
+    min-height: 30px;
   }
 
   .code-block-body {

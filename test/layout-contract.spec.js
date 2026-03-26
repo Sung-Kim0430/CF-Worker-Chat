@@ -127,7 +127,9 @@ test("styles.css keeps featured model pills compact and low-noise", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
   assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*min-height:\s*30px/i);
+  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*padding:\s*4px 8px/i);
   assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*border-radius:\s*12px/i);
+  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.62\)/i);
   assert.match(styles, /\.featured-model-list\s+\.model-choice\.active\s*\{[^}]*box-shadow:\s*none/i);
 });
 
@@ -160,8 +162,11 @@ test("styles.css gives sidebar session titles and timestamps a clearer reading h
 
   assert.match(styles, /\.session-option-title-row\s*\{[^}]*gap:\s*8px/i);
   assert.match(styles, /\.session-option-title-row\s*\{[^}]*align-items:\s*baseline/i);
+  assert.match(styles, /\.session-option small\s*\{[^}]*max-width:\s*88px/i);
   assert.match(styles, /\.session-option small\s*\{[^}]*font-size:\s*0\.72rem/i);
   assert.match(styles, /\.session-option small\s*\{[^}]*text-align:\s*right/i);
+  assert.match(styles, /\.session-option-copy\s*\{[^}]*font-size:\s*0\.76rem/i);
+  assert.match(styles, /\.session-option-meta\s*\{[^}]*font-size:\s*0\.67rem/i);
 });
 
 test("styles.css keeps the composer compact and quieter than the chat surface", () => {
@@ -285,6 +290,9 @@ test("styles.css keeps the mobile shell compact without crowding the composer", 
   assert.match(styles, /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar,\s*\.chat-column\s*\{[\s\S]*?padding:\s*16px/i);
   assert.match(styles, /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?flex-direction:\s*row/i);
   assert.match(styles, /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?align-items:\s*center/i);
+  assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.top-bar,\s*\.chat-column\s*\{[\s\S]*?padding:\s*12px/i);
+  assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.top-bar-surface\s*\{[\s\S]*?gap:\s*4px/i);
+  assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?#sessionSidebarToggle,\s*#modelCatalogToggle\s*\{[\s\S]*?min-height:\s*30px/i);
   assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?#userInput\s*\{[\s\S]*?min-height:\s*88px/i);
   assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.page-shell\s*\{[\s\S]*?width:\s*min\(100vw - 16px,\s*100%\)/i);
 });
