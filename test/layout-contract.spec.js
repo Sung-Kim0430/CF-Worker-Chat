@@ -212,3 +212,21 @@ test("styles.css gives markdown answers readable list, quote and table rhythm", 
   assert.match(styles, /\.message-content\s+table\s*\{[^}]*display:\s*block/i);
   assert.match(styles, /\.message-content\s+table\s*\{[^}]*overflow-x:\s*auto/i);
 });
+
+test("styles.css keeps the model catalog empty state and row rhythm understated", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.catalog-empty\s*\{[^}]*text-align:\s*center/i);
+  assert.match(styles, /\.catalog-empty\s*\{[^}]*padding:\s*18px 10px/i);
+  assert.match(styles, /\.catalog-option\s*\{[^}]*display:\s*grid/i);
+  assert.match(styles, /\.catalog-option\s*\{[^}]*gap:\s*4px/i);
+});
+
+test("styles.css gives markdown answers gentle heading and divider hierarchy", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.message-content\s+h2\s*\{[^}]*font-size:\s*1\.02rem/i);
+  assert.match(styles, /\.message-content\s+h3\s*\{[^}]*font-size:\s*0\.96rem/i);
+  assert.match(styles, /\.message-content\s+hr\s*\{[^}]*border-top:\s*1px solid/i);
+  assert.match(styles, /\.message-content\s+strong\s*\{[^}]*font-weight:\s*700/i);
+});

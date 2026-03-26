@@ -682,11 +682,30 @@ a:focus-visible {
 .message-content p + ul,
 .message-content p + ol,
 .message-content p + blockquote,
+.message-content h2 + p,
+.message-content h3 + p,
 .message-content ul + p,
 .message-content ol + p,
 .message-content blockquote + p,
 .message-content table + p {
   margin-top: 0.9em;
+}
+
+.message-content h2,
+.message-content h3 {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.message-content h2 {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.message-content h3 {
+  font-size: 0.96rem;
+  font-weight: 700;
 }
 
 .message-content ul,
@@ -726,6 +745,17 @@ a:focus-visible {
 .message-content th {
   background: rgba(15, 23, 42, 0.04);
   font-weight: 650;
+}
+
+.message-content hr {
+  margin: 1em 0;
+  border: none;
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.message-content strong {
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .message-content-streaming {
@@ -1230,6 +1260,8 @@ a:focus-visible {
 }
 
 .catalog-option {
+  display: grid;
+  gap: 4px;
   padding: 10px 12px;
   border-radius: 12px;
   border-color: rgba(15, 23, 42, 0.07);
@@ -1274,6 +1306,12 @@ a:focus-visible {
   padding: 2px;
   border-radius: 14px;
   scrollbar-gutter: stable;
+}
+
+.catalog-empty {
+  padding: 18px 10px;
+  text-align: center;
+  color: var(--muted-soft);
 }
 
 .session-list {
