@@ -112,3 +112,20 @@ test("styles.css supports collapsing the desktop session sidebar from the chat s
   assert.match(styles, /#chatWorkspace\[data-sidebar-collapsed="true"\]\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/i);
   assert.match(styles, /#chatWorkspace\[data-sidebar-collapsed="true"\]\s+#sessionSidebar\s*\{[^}]*display:\s*none/i);
 });
+
+test("styles.css keeps the sidebar session list dense and low-chrome", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-list\s*\{[^}]*gap:\s*2px/i);
+  assert.match(styles, /\.session-option\s*\{[^}]*border-radius:\s*14px/i);
+  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*9px 12px/i);
+});
+
+test("styles.css keeps the composer compact and quieter than the chat surface", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.composer\s*\{[^}]*padding:\s*10px/i);
+  assert.match(styles, /\.composer\s*\{[^}]*border-radius:\s*20px/i);
+  assert.match(styles, /#userInput\s*\{[^}]*min-height:\s*72px/i);
+  assert.match(styles, /\.composer-actions\s*\{[^}]*margin-top:\s*8px/i);
+});
