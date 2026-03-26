@@ -194,3 +194,21 @@ test("styles.css keeps the mobile shell compact without crowding the composer", 
   assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?#userInput\s*\{[\s\S]*?min-height:\s*88px/i);
   assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.page-shell\s*\{[\s\S]*?width:\s*min\(100vw - 16px,\s*100%\)/i);
 });
+
+test("styles.css keeps the model catalog list switcher-like and compact", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.model-catalog-list\s*\{[^}]*display:\s*grid/i);
+  assert.match(styles, /\.model-catalog-list\s*\{[^}]*gap:\s*6px/i);
+  assert.match(styles, /\.catalog-option\s*\{[^}]*padding:\s*10px 12px/i);
+  assert.match(styles, /\.catalog-option\.active\s*\{[^}]*box-shadow:\s*none/i);
+});
+
+test("styles.css gives markdown answers readable list, quote and table rhythm", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.message-content\s+blockquote\s*\{[^}]*border-left:\s*3px solid/i);
+  assert.match(styles, /\.message-content\s+(?:ul|ol)\s*\{[^}]*padding-left:\s*1\.2em/i);
+  assert.match(styles, /\.message-content\s+table\s*\{[^}]*display:\s*block/i);
+  assert.match(styles, /\.message-content\s+table\s*\{[^}]*overflow-x:\s*auto/i);
+});
