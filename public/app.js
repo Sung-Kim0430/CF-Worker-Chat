@@ -43,6 +43,7 @@ const state = {
   isCatalogOpen: false,
   isSessionSidebarOpen: false,
   isSessionSidebarCollapsed: false,
+  openSessionActionMenuId: null,
   sessionSearchQuery: "",
   renamingSessionId: null,
   renamingSessionDraft: "",
@@ -76,6 +77,17 @@ export function getSessionSidebarToggleLabel({
   }
 
   return isSidebarCollapsed ? "显示对话栏" : "隐藏对话栏";
+}
+
+export function getNextSessionActionMenuId(currentOpenSessionId = null, requestedSessionId = null) {
+  const normalizedCurrent = currentOpenSessionId || null;
+  const normalizedRequested = requestedSessionId || null;
+
+  if (!normalizedRequested) {
+    return null;
+  }
+
+  return normalizedCurrent === normalizedRequested ? null : normalizedRequested;
 }
 
 export function normalizeStarterPrompt(prompt, index = 0) {
@@ -708,6 +720,7 @@ function createNewChatSession() {
     now: Date.now,
   });
   state.isSessionSidebarOpen = false;
+  state.openSessionActionMenuId = null;
   state.sessionSearchQuery = "";
   state.renamingSessionId = null;
   state.renamingSessionDraft = "";
@@ -719,6 +732,7 @@ function switchToSession(sessionId) {
   state.sessionStore = setActiveSessionId(state.sessionStore, sessionId);
   state.isSessionSidebarOpen = false;
   state.isCatalogOpen = false;
+  state.openSessionActionMenuId = null;
   state.renamingSessionId = null;
   state.renamingSessionDraft = "";
   syncStateFromActiveSession({ resetRenderSnapshot: true });
@@ -732,6 +746,7 @@ function clearAllLocalSessions() {
   });
   state.isCatalogOpen = false;
   state.isSessionSidebarOpen = false;
+  state.openSessionActionMenuId = null;
   state.sessionSearchQuery = "";
   state.renamingSessionId = null;
   state.renamingSessionDraft = "";
@@ -773,6 +788,7 @@ function startSessionRename(sessionId) {
     return;
   }
 
+  state.openSessionActionMenuId = null;
   state.renamingSessionId = session.id;
   state.renamingSessionDraft = session.title || "新对话";
   renderSessionList();
@@ -785,6 +801,7 @@ function startSessionRename(sessionId) {
 }
 
 function cancelSessionRename() {
+  state.openSessionActionMenuId = null;
   state.renamingSessionId = null;
   state.renamingSessionDraft = "";
   renderSessionList();
@@ -800,6 +817,7 @@ function commitSessionRename(sessionId) {
 
   const sanitizedTitle = sanitizeManualSessionTitle(draft);
   state.sessionStore = renameSession(state.sessionStore, sessionId, sanitizedTitle);
+  state.openSessionActionMenuId = null;
   state.renamingSessionId = null;
   state.renamingSessionDraft = "";
   syncStateFromActiveSession();
@@ -809,10 +827,38 @@ function commitSessionRename(sessionId) {
 
 function restoreSessionTitle(sessionId) {
   state.sessionStore = restoreAutoSessionTitle(state.sessionStore, sessionId);
+  state.openSessionActionMenuId = null;
   state.renamingSessionId = null;
   state.renamingSessionDraft = "";
   syncStateFromActiveSession();
   persistLocalSessionStore();
+  renderSessionList();
+}
+
+function closeSessionActionMenu({ render = true } = {}) {
+  if (!state.openSessionActionMenuId) {
+    return;
+  }
+
+  state.openSessionActionMenuId = null;
+
+  if (render) {
+    renderSessionList();
+  }
+}
+
+function toggleSessionActionMenu(sessionId) {
+  if (state.isSending) {
+    return;
+  }
+
+  const nextMenuId = getNextSessionActionMenuId(state.openSessionActionMenuId, sessionId);
+
+  if (nextMenuId === state.openSessionActionMenuId) {
+    return;
+  }
+
+  state.openSessionActionMenuId = nextMenuId;
   renderSessionList();
 }
 
@@ -824,6 +870,7 @@ function clearSessionSearch({ focusInput = false } = {}) {
     return;
   }
 
+  state.openSessionActionMenuId = null;
   state.sessionSearchQuery = "";
   renderSessionList();
 
@@ -1383,6 +1430,7 @@ function renderSessionList() {
             .filter(Boolean)
             .join(" · ");
           const isRenaming = state.renamingSessionId === session.id;
+          const isActionMenuOpen = state.openSessionActionMenuId === session.id;
           const titleHtml = highlightSearchMatches(
             session.title || "新对话",
             state.sessionSearchQuery,
@@ -1465,19 +1513,34 @@ function renderSessionList() {
                 <span class="session-option-copy">${previewHtml}</span>
                 <span class="session-option-meta">${metaHtml}</span>
               </button>
-              <div class="session-option-actions">
+              <div
+                class="session-option-actions"
+                data-open="${isActionMenuOpen ? "true" : "false"}"
+              >
                 <button
-                  class="session-inline-action"
+                  class="session-inline-action session-inline-action-menu"
                   type="button"
-                  data-session-action="rename"
+                  data-session-action="toggle-menu"
                   data-session-id="${escapeHtml(session.id)}"
+                  aria-label="更多操作"
+                  aria-expanded="${isActionMenuOpen ? "true" : "false"}"
                   ${sessionActionsDisabled ? "disabled" : ""}
                 >
-                  改名
+                  ···
                 </button>
-                ${
-                  session.titleManuallyEdited
-                    ? `
+                <div class="session-action-popover">
+                  <button
+                    class="session-inline-action"
+                    type="button"
+                    data-session-action="rename"
+                    data-session-id="${escapeHtml(session.id)}"
+                    ${sessionActionsDisabled ? "disabled" : ""}
+                  >
+                    改名
+                  </button>
+                  ${
+                    session.titleManuallyEdited
+                      ? `
                 <button
                   class="session-inline-action"
                   type="button"
@@ -1488,8 +1551,9 @@ function renderSessionList() {
                 >
                   自动标题
                 </button>`
-                    : ""
-                }
+                      : ""
+                  }
+                </div>
               </div>
             </article>
           `;
@@ -1886,6 +1950,7 @@ function bindEvents() {
   });
 
   elements.sessionSearchInput.addEventListener("input", (event) => {
+    state.openSessionActionMenuId = null;
     state.sessionSearchQuery = event.target.value;
     renderSessionList();
   });
@@ -1929,6 +1994,11 @@ function bindEvents() {
 
     if (actionButton) {
       const { sessionAction, sessionId } = actionButton.dataset;
+
+      if (sessionAction === "toggle-menu") {
+        toggleSessionActionMenu(sessionId);
+        return;
+      }
 
       if (sessionAction === "rename") {
         startSessionRename(sessionId);
@@ -1994,6 +2064,30 @@ function bindEvents() {
       event.preventDefault();
       cancelSessionRename();
     }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!state.openSessionActionMenuId) {
+      return;
+    }
+
+    if (event.target.closest(".session-option-actions")) {
+      return;
+    }
+
+    closeSessionActionMenu();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !state.openSessionActionMenuId) {
+      return;
+    }
+
+    if (event.target.closest("[data-session-rename-input]")) {
+      return;
+    }
+
+    closeSessionActionMenu();
   });
 
   elements.clearAllSessionsButton.addEventListener("click", () => {

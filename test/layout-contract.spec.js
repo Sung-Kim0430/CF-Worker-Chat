@@ -67,6 +67,14 @@ test("index.html keeps the shell intentionally minimal without decorative chrome
   assert.doesNotMatch(html, /tips-panel/);
 });
 
+test("app.js renders session row actions behind a quieter more-actions trigger", () => {
+  const script = fs.readFileSync("public/app.js", "utf8");
+
+  assert.match(script, /data-session-action="toggle-menu"/i);
+  assert.match(script, /aria-label="更多操作"/i);
+  assert.match(script, /class="session-action-popover"/i);
+});
+
 test("index.html keeps the desktop sidebar toggle as a dedicated control instead of a mobile-only button", () => {
   const html = fs.readFileSync("public/index.html", "utf8");
 
@@ -186,6 +194,15 @@ test("styles.css keeps sidebar row actions quiet and precise", () => {
   assert.match(styles, /\.session-option-actions\s*\{[^}]*gap:\s*4px/i);
   assert.match(styles, /\.session-inline-action\s*\{[^}]*min-height:\s*26px/i);
   assert.match(styles, /\.session-inline-action\s*\{[^}]*border-radius:\s*9px/i);
+});
+
+test("styles.css keeps session action menus compact and hidden until explicitly opened", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-inline-action-menu\s*\{[^}]*min-width:\s*30px/i);
+  assert.match(styles, /\.session-inline-action-menu\s*\{[^}]*justify-content:\s*center/i);
+  assert.match(styles, /\.session-action-popover\s*\{[^}]*position:\s*absolute/i);
+  assert.match(styles, /\.session-option-actions\[data-open="true"\]\s+\.session-action-popover\s*\{[^}]*opacity:\s*1/i);
 });
 
 test("styles.css keeps the model catalog panel compact and search-first", () => {

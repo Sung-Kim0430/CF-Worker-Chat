@@ -58,6 +58,15 @@ test("getSessionSidebarToggleLabel switches copy for desktop collapse and mobile
   );
 });
 
+test("getNextSessionActionMenuId toggles the same menu closed and switches cleanly between sessions", () => {
+  assert.equal(typeof app.getNextSessionActionMenuId, "function");
+
+  assert.equal(app.getNextSessionActionMenuId(null, "s1"), "s1");
+  assert.equal(app.getNextSessionActionMenuId("s1", "s1"), null);
+  assert.equal(app.getNextSessionActionMenuId("s1", "s2"), "s2");
+  assert.equal(app.getNextSessionActionMenuId("s2", null), null);
+});
+
 
 
 test("buildAssistantContentPayload keeps streaming replies in plain-text mode to reduce flicker", () => {
