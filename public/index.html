@@ -55,15 +55,17 @@
           </div>
 
           <section id="modelCatalogPanel" class="floating-panel model-catalog-panel" hidden>
-            <label class="field-label" for="modelSearchInput">搜索模型</label>
-            <input
-              id="modelSearchInput"
-              class="model-search-input"
-              type="search"
-              placeholder="搜索模型或提供方"
-              autocomplete="off"
-            />
-            <div id="modelCatalogList" class="model-catalog-list"></div>
+            <div id="modelCatalogSurface" class="model-catalog-surface">
+              <label class="field-label" for="modelSearchInput">搜索模型</label>
+              <input
+                id="modelSearchInput"
+                class="model-search-input"
+                type="search"
+                placeholder="搜索模型或提供方"
+                autocomplete="off"
+              />
+              <div id="modelCatalogList" class="model-catalog-list"></div>
+            </div>
           </section>
         </div>
 
@@ -146,7 +148,9 @@
         </aside>
 
         <section id="chatColumnSurface" class="chat-column panel">
-          <div id="chatHistory" class="chat-history" aria-live="polite"></div>
+          <div id="chatHistorySurface" class="chat-history-surface">
+            <div id="chatHistory" class="chat-history" aria-live="polite"></div>
+          </div>
 
           <div id="chatComposerShell" class="chat-composer-shell">
             <form id="chatForm" class="composer" autocomplete="off">

@@ -14,6 +14,7 @@ test("index.html exposes the sidebar history shell anchors", () => {
     "featuredModelList",
     "modelCatalogToggle",
     "modelCatalogPanel",
+    "modelCatalogSurface",
     "modelSearchInput",
     "modelCatalogList",
     "sessionSidebar",
@@ -30,6 +31,7 @@ test("index.html exposes the sidebar history shell anchors", () => {
     "chatForm",
     "chatComposerShell",
     "chatHistory",
+    "chatHistorySurface",
     "userInput",
     "sendButton",
   ]) {
