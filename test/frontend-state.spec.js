@@ -18,6 +18,46 @@ test("formatModelLabel adds clear speed and cost hints", () => {
   );
 });
 
+test("getSessionSidebarToggleLabel switches copy for desktop collapse and mobile drawer states", () => {
+  assert.equal(typeof app.getSessionSidebarToggleLabel, "function");
+
+  assert.equal(
+    app.getSessionSidebarToggleLabel({
+      isMobileViewport: false,
+      isSidebarCollapsed: false,
+      isSidebarOpen: false,
+    }),
+    "隐藏对话栏",
+  );
+
+  assert.equal(
+    app.getSessionSidebarToggleLabel({
+      isMobileViewport: false,
+      isSidebarCollapsed: true,
+      isSidebarOpen: false,
+    }),
+    "显示对话栏",
+  );
+
+  assert.equal(
+    app.getSessionSidebarToggleLabel({
+      isMobileViewport: true,
+      isSidebarCollapsed: false,
+      isSidebarOpen: false,
+    }),
+    "对话记录",
+  );
+
+  assert.equal(
+    app.getSessionSidebarToggleLabel({
+      isMobileViewport: true,
+      isSidebarCollapsed: false,
+      isSidebarOpen: true,
+    }),
+    "收起对话",
+  );
+});
+
 
 
 test("buildAssistantContentPayload keeps streaming replies in plain-text mode to reduce flicker", () => {

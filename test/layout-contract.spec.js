@@ -89,3 +89,26 @@ test("styles.css centers the empty-state copy within the chat area", () => {
   assert.match(styles, /\.empty-state\s*\{[^}]*place-items:\s*center/i);
   assert.match(styles, /\.empty-state\s*\{[^}]*text-align:\s*center/i);
 });
+
+test("styles.css keeps the active sidebar session understated and app-like", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.session-option\.active\s*\{[^}]*box-shadow:\s*none/i);
+  assert.match(styles, /\.session-option\.active\s*\{[^}]*background:\s*rgba\(/i);
+  assert.match(styles, /\.session-option\.active::before\s*\{[^}]*width:\s*3px/i);
+});
+
+test("styles.css keeps featured model pills compact and low-noise", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*min-height:\s*32px/i);
+  assert.match(styles, /\.featured-model-list\s+\.model-choice\s*\{[^}]*border-radius:\s*14px/i);
+  assert.match(styles, /\.featured-model-list\s+\.model-choice\.active\s*\{[^}]*box-shadow:\s*none/i);
+});
+
+test("styles.css supports collapsing the desktop session sidebar from the chat shell", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /#chatWorkspace\[data-sidebar-collapsed="true"\]\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/i);
+  assert.match(styles, /#chatWorkspace\[data-sidebar-collapsed="true"\]\s+#sessionSidebar\s*\{[^}]*display:\s*none/i);
+});

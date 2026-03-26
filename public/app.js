@@ -42,6 +42,7 @@ const state = {
   modelCatalogQuery: "",
   isCatalogOpen: false,
   isSessionSidebarOpen: false,
+  isSessionSidebarCollapsed: false,
   sessionSearchQuery: "",
   renamingSessionId: null,
   renamingSessionDraft: "",
@@ -49,6 +50,8 @@ const state = {
     phase: "booting",
   },
 };
+
+const SESSION_SIDEBAR_COLLAPSE_STORAGE_KEY = "cf-worker-chat.sidebar-collapsed.v1";
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
   hour: "2-digit",
@@ -61,6 +64,18 @@ let lastRenderedHistorySnapshot = [];
 
 export function formatModelLabel(model) {
   return `${model.label} · ${model.speedTag} · ${model.costTag}`;
+}
+
+export function getSessionSidebarToggleLabel({
+  isMobileViewport = false,
+  isSidebarCollapsed = false,
+  isSidebarOpen = false,
+} = {}) {
+  if (isMobileViewport) {
+    return isSidebarOpen ? "收起对话" : "对话记录";
+  }
+
+  return isSidebarCollapsed ? "显示对话栏" : "隐藏对话栏";
 }
 
 export function normalizeStarterPrompt(prompt, index = 0) {
@@ -573,6 +588,34 @@ function getSafeLocalStorage() {
   }
 }
 
+function persistSessionSidebarPreference() {
+  const storage = getSafeLocalStorage();
+
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(
+      SESSION_SIDEBAR_COLLAPSE_STORAGE_KEY,
+      state.isSessionSidebarCollapsed ? "true" : "false",
+    );
+  } catch {}
+}
+
+function restoreSessionSidebarPreference() {
+  const storage = getSafeLocalStorage();
+
+  if (!storage) {
+    return;
+  }
+
+  try {
+    state.isSessionSidebarCollapsed =
+      storage.getItem(SESSION_SIDEBAR_COLLAPSE_STORAGE_KEY) === "true";
+  } catch {}
+}
+
 function syncDocumentSurfaceState() {
   if (typeof document === "undefined") {
     return;
@@ -697,17 +740,29 @@ function clearAllLocalSessions() {
 }
 
 function openSessionSidebar() {
-  state.isSessionSidebarOpen = true;
   state.isCatalogOpen = false;
+  if (isMobileSidebarViewport()) {
+    state.isSessionSidebarOpen = true;
+  } else {
+    state.isSessionSidebarCollapsed = false;
+    persistSessionSidebarPreference();
+  }
   renderOperatorPanel();
 }
 
 function closeSessionSidebar() {
-  if (!state.isSessionSidebarOpen) {
+  if (isMobileSidebarViewport()) {
+    if (!state.isSessionSidebarOpen) {
+      return;
+    }
+
+    state.isSessionSidebarOpen = false;
+    renderOperatorPanel();
     return;
   }
 
-  state.isSessionSidebarOpen = false;
+  state.isSessionSidebarCollapsed = true;
+  persistSessionSidebarPreference();
   renderOperatorPanel();
 }
 
@@ -1273,6 +1328,10 @@ function renderModelCatalog() {
 function renderSessionList() {
   const activeSessionId = state.sessionStore.activeSessionId;
   const sessions = state.sessionStore.sessions || [];
+  const isMobileViewport = isMobileSidebarViewport();
+  const isSidebarVisible = isMobileViewport
+    ? state.isSessionSidebarOpen
+    : !state.isSessionSidebarCollapsed;
   const visibleSessions = filterSessionList(
     sessions,
     state.sessionSearchQuery,
@@ -1285,12 +1344,21 @@ function renderSessionList() {
     totalCount: sessions.length,
   });
 
+  elements.sessionSidebarToggle.textContent = getSessionSidebarToggleLabel({
+    isMobileViewport,
+    isSidebarCollapsed: state.isSessionSidebarCollapsed,
+    isSidebarOpen: state.isSessionSidebarOpen,
+  });
   elements.sessionSidebarToggle.setAttribute(
     "aria-expanded",
-    state.isSessionSidebarOpen ? "true" : "false",
+    isSidebarVisible ? "true" : "false",
   );
-  elements.sessionSidebar.dataset.open = state.isSessionSidebarOpen ? "true" : "false";
-  elements.sessionSidebarBackdrop.dataset.open = state.isSessionSidebarOpen ? "true" : "false";
+  elements.sessionSidebar.dataset.open =
+    isMobileViewport && state.isSessionSidebarOpen ? "true" : "false";
+  elements.sessionSidebarBackdrop.dataset.open =
+    isMobileViewport && state.isSessionSidebarOpen ? "true" : "false";
+  elements.chatWorkspace.dataset.sidebarCollapsed =
+    !isMobileViewport && state.isSessionSidebarCollapsed ? "true" : "false";
   elements.clearAllSessionsButton.disabled =
     sessionActionsDisabled || sessions.length === 0;
   elements.newChatButton.disabled = sessionActionsDisabled;
@@ -2008,6 +2076,11 @@ function bindEvents() {
   });
 
   window.addEventListener("resize", () => {
+    if (!isMobileSidebarViewport() && state.isSessionSidebarOpen) {
+      state.isSessionSidebarOpen = false;
+    }
+
+    renderOperatorPanel();
     syncDocumentSurfaceState();
   });
 }
@@ -2023,6 +2096,7 @@ async function initApp() {
     modelCatalogToggle: document.getElementById("modelCatalogToggle"),
     modelSearchInput: document.getElementById("modelSearchInput"),
     sendButton: document.getElementById("sendButton"),
+    chatWorkspace: document.getElementById("chatWorkspace"),
     newChatButton: document.getElementById("newChatButton"),
     sessionList: document.getElementById("sessionList"),
     sessionSidebar: document.getElementById("sessionSidebar"),
@@ -2043,6 +2117,7 @@ async function initApp() {
   try {
     await loadConfig();
     renderShell();
+    restoreSessionSidebarPreference();
     restoreLocalSessionStore();
     renderOperatorPanel();
     renderMessages();
