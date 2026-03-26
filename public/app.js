@@ -14,21 +14,41 @@ import {
   getControlState,
   getSessionStatus,
 } from "./lib/ui-state.js";
+import {
+  buildSessionTitle,
+  clearAllSessions,
+  createNextSessionStore,
+  persistSessionStore,
+  replaceSession,
+  restoreSessionStore,
+  setActiveSessionId,
+} from "./lib/local-sessions.js";
 
 const state = {
   config: null,
   history: [],
   expandedCodeBlocks: {},
+  sessionStore: {
+    activeSessionId: null,
+    sessions: [],
+  },
   selectedModel: null,
   isSending: false,
   modelCatalogQuery: "",
   isCatalogOpen: false,
+  isSessionMenuOpen: false,
   session: {
     phase: "booting",
   },
 };
 
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const sessionTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  month: "numeric",
+  day: "numeric",
   hour: "2-digit",
   minute: "2-digit",
 });
@@ -418,6 +438,138 @@ function getSelectedModelMeta() {
   return getAllModels().find((model) => model.id === state.selectedModel) ?? null;
 }
 
+function getDefaultModelId() {
+  return (
+    state.config?.defaultModel ||
+    state.config?.featuredModels?.[0]?.id ||
+    state.config?.modelCatalog?.[0]?.id ||
+    state.config?.models?.[0]?.id ||
+    null
+  );
+}
+
+function getAvailableModelIds() {
+  return getAllModels()
+    .map((model) => model.id)
+    .filter(Boolean);
+}
+
+function getSafeLocalStorage() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function getActiveSession() {
+  const sessions = state.sessionStore.sessions || [];
+
+  return sessions.find((session) => session.id === state.sessionStore.activeSessionId)
+    ?? sessions[0]
+    ?? null;
+}
+
+function syncStateFromActiveSession({ resetRenderSnapshot = false } = {}) {
+  const activeSession = getActiveSession();
+
+  if (!activeSession) {
+    state.history = [];
+    state.expandedCodeBlocks = {};
+    state.selectedModel = getDefaultModelId();
+
+    if (resetRenderSnapshot) {
+      lastRenderedHistorySnapshot = [];
+    }
+
+    return;
+  }
+
+  state.sessionStore.activeSessionId = activeSession.id;
+  state.history = activeSession.history;
+  state.expandedCodeBlocks = activeSession.expandedCodeBlocks;
+  state.selectedModel = activeSession.modelId || getDefaultModelId();
+
+  if (resetRenderSnapshot) {
+    lastRenderedHistorySnapshot = [];
+  }
+}
+
+function persistLocalSessionStore() {
+  persistSessionStore(getSafeLocalStorage(), state.sessionStore);
+}
+
+function restoreLocalSessionStore() {
+  state.sessionStore = restoreSessionStore(getSafeLocalStorage(), {
+    defaultModelId: getDefaultModelId(),
+    availableModelIds: getAvailableModelIds(),
+    now: Date.now,
+  });
+  syncStateFromActiveSession({ resetRenderSnapshot: true });
+}
+
+function touchActiveSession({ preserveTitle = false } = {}) {
+  const activeSession = getActiveSession();
+
+  if (!activeSession) {
+    return null;
+  }
+
+  const nextSession = {
+    ...activeSession,
+    history: [...activeSession.history],
+    expandedCodeBlocks: { ...activeSession.expandedCodeBlocks },
+    modelId: state.selectedModel || activeSession.modelId || getDefaultModelId(),
+    updatedAt: Date.now(),
+  };
+
+  if (!preserveTitle) {
+    nextSession.title = buildSessionTitle(nextSession.history);
+  }
+
+  state.sessionStore = {
+    ...replaceSession(state.sessionStore, nextSession),
+    activeSessionId: nextSession.id,
+  };
+  syncStateFromActiveSession();
+  persistLocalSessionStore();
+
+  return getActiveSession();
+}
+
+function createNewChatSession() {
+  state.sessionStore = createNextSessionStore(state.sessionStore, {
+    defaultModelId: state.selectedModel || getDefaultModelId(),
+    now: Date.now,
+  });
+  state.isSessionMenuOpen = false;
+  syncStateFromActiveSession({ resetRenderSnapshot: true });
+  persistLocalSessionStore();
+}
+
+function switchToSession(sessionId) {
+  state.sessionStore = setActiveSessionId(state.sessionStore, sessionId);
+  state.isSessionMenuOpen = false;
+  state.isCatalogOpen = false;
+  syncStateFromActiveSession({ resetRenderSnapshot: true });
+  persistLocalSessionStore();
+}
+
+function clearAllLocalSessions() {
+  state.sessionStore = clearAllSessions({
+    defaultModelId: getDefaultModelId(),
+    now: Date.now,
+  });
+  state.isCatalogOpen = false;
+  state.isSessionMenuOpen = false;
+  syncStateFromActiveSession({ resetRenderSnapshot: true });
+  persistLocalSessionStore();
+}
+
 function isNearBottom(container) {
   const threshold = 140;
   return (
@@ -450,10 +602,13 @@ function setExpandedCodeBlockState(codeBlockKey, expanded) {
 
   if (expanded) {
     state.expandedCodeBlocks[codeBlockKey] = true;
+    touchActiveSession({ preserveTitle: true });
     return;
   }
 
   delete state.expandedCodeBlocks[codeBlockKey];
+
+  touchActiveSession({ preserveTitle: true });
 }
 
 function toggleCodeBlockExpansion(button) {
@@ -825,10 +980,6 @@ function updateSessionStatus() {
   const { tone, message } = getSessionStatus(state.session);
   elements.chatStatus.dataset.state = tone;
   elements.chatStatus.textContent = message;
-  if (elements.sessionSummary) {
-    elements.sessionSummary.dataset.state = tone;
-  }
-  renderSessionSummary();
 }
 
 function renderShell() {
@@ -837,79 +988,10 @@ function renderShell() {
   }
 
   document.title = state.config.title;
-  elements.appTitle.textContent = state.config.title;
-  elements.appSubtitle.textContent = state.config.subtitle;
-  elements.inputHint.textContent = state.config.inputHint;
-  elements.workspaceBadges.innerHTML = (state.config.workspaceBadges ?? [])
-    .map(
-      (badge) => `
-        <span class="badge" data-tone="${escapeHtml(badge.tone || "neutral")}">
-          ${escapeHtml(badge.label)}
-        </span>
-      `,
-    )
-    .join("");
-
-  elements.composerPresets.innerHTML = (state.config.composerShortcuts ?? [])
-    .map(
-      (shortcut) => `
-        <button
-          class="preset-chip"
-          type="button"
-          data-prompt="${escapeHtml(shortcut.prompt || "")}"
-        >
-          ${escapeHtml(shortcut.label || "快捷任务")}
-        </button>
-      `,
-    )
-    .join("");
 }
 
 function renderModelMeta() {
-  const model = getSelectedModelMeta();
-
-  if (!model) {
-    elements.modelMeta.innerHTML = "";
-    return;
-  }
-
-  const capabilityPills = [
-    model.speedTag,
-    model.costTag,
-    model.supportsReasoning ? "Reasoning" : null,
-    model.supportsFunctionCalling ? "Tools" : null,
-    model.supportsStreaming ? "Streaming" : null,
-  ].filter(Boolean);
-
-  elements.modelMeta.innerHTML = `
-    <div class="model-meta-header">
-      <div>
-        <p class="meta-kicker">当前模型</p>
-        <h4>${escapeHtml(model.label)}</h4>
-      </div>
-      <span class="model-provider">${escapeHtml(model.provider || "Workers AI")}</span>
-    </div>
-    <p>${escapeHtml(model.description)}</p>
-    <div class="status-row">
-      ${capabilityPills
-        .map((pill) => `<span class="badge">${escapeHtml(pill)}</span>`)
-        .join("")}
-    </div>
-    <dl class="model-facts">
-      <div>
-        <dt>适合任务</dt>
-        <dd>${escapeHtml(model.recommendedFor || "通用对话")}</dd>
-      </div>
-      <div>
-        <dt>模型家族</dt>
-        <dd>${escapeHtml(model.family || model.provider || "通用")}</dd>
-      </div>
-      <div>
-        <dt>上下文</dt>
-        <dd>${escapeHtml(`${Number(model.contextWindow || 0).toLocaleString()} ctx`)}</dd>
-      </div>
-    </dl>
-  `;
+  return null;
 }
 
 function renderFeaturedModels() {
@@ -928,8 +1010,7 @@ function renderFeaturedModels() {
           aria-pressed="${isActive ? "true" : "false"}"
           ${controlState.modelDisabled ? "disabled" : ""}
         >
-          <strong>${escapeHtml(model.label)}</strong>
-          <span>${escapeHtml(model.recommendedFor || formatModelLabel(model))}</span>
+          <strong>${escapeHtml(model.shortLabel || model.label)}</strong>
         </button>
       `;
     })
@@ -940,25 +1021,17 @@ function renderModelCatalog() {
   const controlState = getCurrentControlState();
   const modelPickerCopy = state.config?.modelPicker ?? {};
   const allModels = getAllModels();
-  const featuredModels = getFeaturedModelsForView();
   const filteredModels = filterModelCatalog(allModels, state.modelCatalogQuery);
-  const hiddenModelCount = Math.max(allModels.length - featuredModels.length, 0);
 
   elements.modelCatalogToggle.disabled = controlState.modelDisabled;
   elements.modelCatalogToggle.textContent = state.isCatalogOpen
-    ? "收起模型目录"
-    : `查看全部 ${allModels.length} 个模型`;
+    ? "收起模型"
+    : "更多模型";
   elements.modelCatalogToggle.setAttribute(
     "aria-expanded",
     state.isCatalogOpen ? "true" : "false",
   );
-  elements.modelCatalogToggle.hidden = !state.isCatalogOpen && hiddenModelCount === 0;
   elements.modelCatalogPanel.hidden = !state.isCatalogOpen;
-  elements.modelCatalogPreview.hidden = state.isCatalogOpen || hiddenModelCount === 0;
-  elements.modelCatalogPreview.textContent = getModelCatalogPreviewText(
-    allModels,
-    featuredModels,
-  );
   elements.modelSearchInput.placeholder =
     modelPickerCopy.searchPlaceholder || "搜索模型或提供方";
   elements.modelSearchInput.value = state.modelCatalogQuery;
@@ -988,22 +1061,45 @@ function renderModelCatalog() {
     : `<p class="catalog-empty">没有找到匹配的模型，请换个关键词试试。</p>`;
 }
 
-function renderPromptCards() {
-  const prompts = state.config?.starterPrompts ?? [];
-  const disabledAttribute = state.isSending ? " disabled" : "";
+function renderSessionList() {
+  const activeSessionId = state.sessionStore.activeSessionId;
+  const sessions = state.sessionStore.sessions || [];
+  const controlState = getCurrentControlState();
 
-  elements.starterPrompts.innerHTML = prompts
-    .map((prompt, index) => {
-      const promptButton = buildStarterPromptButtonModel(prompt, index);
+  elements.sessionMenuToggle.disabled = state.isSending;
+  elements.sessionMenuToggle.setAttribute(
+    "aria-expanded",
+    state.isSessionMenuOpen ? "true" : "false",
+  );
+  elements.sessionMenuPanel.hidden = !state.isSessionMenuOpen;
+  elements.clearAllSessionsButton.disabled =
+    state.isSending || sessions.length === 0;
 
-      return `
-        <button class="prompt-button" type="button" data-prompt="${escapeHtml(promptButton.dataPrompt)}"${disabledAttribute}>
-          <strong>${escapeHtml(promptButton.title)}</strong>
-          <span>${escapeHtml(promptButton.description)}</span>
-        </button>
-      `;
-    })
-    .join("");
+  elements.sessionList.innerHTML = sessions.length
+    ? sessions
+        .map((session) => {
+          const isActive = session.id === activeSessionId;
+          const messageCount = session.history.length;
+
+          return `
+            <button
+              class="session-option${isActive ? " active" : ""}"
+              type="button"
+              data-session-id="${escapeHtml(session.id)}"
+              ${controlState.modelDisabled ? "disabled" : ""}
+            >
+              <span class="session-option-title-row">
+                <strong>${escapeHtml(session.title || "新对话")}</strong>
+                <small>${escapeHtml(sessionTimeFormatter.format(session.updatedAt))}</small>
+              </span>
+              <span class="session-option-copy">${escapeHtml(
+                messageCount > 0 ? `${messageCount} 条消息` : "空白对话",
+              )}</span>
+            </button>
+          `;
+        })
+        .join("")
+    : `<p class="catalog-empty">还没有本地对话。</p>`;
 }
 
 function renderMessages() {
@@ -1021,9 +1117,7 @@ function renderMessages() {
   if (state.history.length === 0) {
     elements.chatHistory.innerHTML = `
       <section class="empty-state">
-        <p class="section-label">Ready</p>
-        <h3>从一个明确问题开始。</h3>
-        <p>直接输入问题，或先切换模型。</p>
+        <p>开始新的对话。</p>
       </section>
     `;
     lastRenderedHistorySnapshot = nextHistorySnapshot;
@@ -1108,8 +1202,7 @@ function renderOperatorPanel() {
 
   renderFeaturedModels();
   renderModelCatalog();
-  renderModelMeta();
-  renderPromptCards();
+  renderSessionList();
 }
 
 function renderComposer() {
@@ -1118,14 +1211,10 @@ function renderComposer() {
   }
 
   const controlState = getCurrentControlState();
-  const composerButtons = elements.composerPresets.querySelectorAll("button");
 
   elements.sendButton.disabled = controlState.sendDisabled;
   elements.userInput.disabled = controlState.inputDisabled;
-  elements.resetButton.disabled = controlState.resetDisabled;
-  composerButtons.forEach((button) => {
-    button.disabled = state.isSending;
-  });
+  elements.newChatButton.disabled = state.isSending;
 }
 
 async function streamAssistantReply(response, assistantMessage) {
@@ -1222,6 +1311,7 @@ async function sendMessage(messageText) {
   };
 
   state.history.push(userMessage, assistantMessage);
+  touchActiveSession();
   state.isSending = true;
   state.session = {
     phase: "sending",
@@ -1269,6 +1359,7 @@ async function sendMessage(messageText) {
   } finally {
     state.isSending = false;
     assistantMessage.streaming = false;
+    touchActiveSession();
     renderMessages();
     renderComposer();
     renderOperatorPanel();
@@ -1289,6 +1380,7 @@ function setSelectedModel(modelId, { closeCatalog = false } = {}) {
   }
 
   state.selectedModel = nextModel.id;
+  touchActiveSession({ preserveTitle: true });
   state.session = {
     phase: "model-selected",
     modelLabel: nextModel.label,
@@ -1314,12 +1406,6 @@ async function loadConfig() {
   }
 
   state.config = await response.json();
-  state.selectedModel =
-    state.config.defaultModel ||
-    state.config.featuredModels?.[0]?.id ||
-    state.config.modelCatalog?.[0]?.id ||
-    state.config.models?.[0]?.id ||
-    null;
 }
 
 function bindEvents() {
@@ -1362,6 +1448,7 @@ function bindEvents() {
     }
 
     state.isCatalogOpen = !state.isCatalogOpen;
+    state.isSessionMenuOpen = false;
     renderOperatorPanel();
 
     if (state.isCatalogOpen) {
@@ -1374,7 +1461,6 @@ function bindEvents() {
   elements.modelSearchInput.addEventListener("input", (event) => {
     state.modelCatalogQuery = event.target.value;
     renderModelCatalog();
-    renderSessionSummary();
   });
 
   elements.modelCatalogList.addEventListener("click", (event) => {
@@ -1387,46 +1473,85 @@ function bindEvents() {
     setSelectedModel(button.dataset.modelId, { closeCatalog: true });
   });
 
-  elements.starterPrompts.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-prompt]");
-
-    if (!button || state.isSending) {
-      return;
-    }
-
-    elements.userInput.value = readStarterPromptSelection(button);
-    autoResizeTextarea();
-    renderComposer();
-    elements.userInput.focus();
-  });
-
-  elements.composerPresets.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-prompt]");
-
-    if (!button || state.isSending) {
-      return;
-    }
-
-    elements.userInput.value = readStarterPromptSelection(button);
-    autoResizeTextarea();
-    renderComposer();
-    elements.userInput.focus();
-  });
-
-  elements.resetButton.addEventListener("click", () => {
+  elements.sessionMenuToggle.addEventListener("click", () => {
     if (state.isSending) {
       return;
     }
 
-    state.history = [];
-    state.expandedCodeBlocks = {};
+    state.isSessionMenuOpen = !state.isSessionMenuOpen;
+    state.isCatalogOpen = false;
+    renderOperatorPanel();
+  });
+
+  elements.newChatButton.addEventListener("click", () => {
+    if (state.isSending) {
+      return;
+    }
+
+    createNewChatSession();
     state.session = {
       phase: "reset",
     };
     renderMessages();
     renderComposer();
+    renderOperatorPanel();
     updateSessionStatus();
     elements.userInput.focus();
+  });
+
+  elements.sessionList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-session-id]");
+
+    if (!button || state.isSending) {
+      return;
+    }
+
+    switchToSession(button.dataset.sessionId);
+    state.session = {
+      phase: "ready",
+    };
+    renderMessages();
+    renderComposer();
+    renderOperatorPanel();
+    updateSessionStatus();
+    elements.userInput.focus();
+  });
+
+  elements.clearAllSessionsButton.addEventListener("click", () => {
+    if (state.isSending) {
+      return;
+    }
+
+    const shouldClear =
+      typeof window === "undefined"
+        ? true
+        : window.confirm("确定要清空全部本地对话吗？此操作无法撤销。");
+
+    if (!shouldClear) {
+      return;
+    }
+
+    clearAllLocalSessions();
+    state.session = {
+      phase: "reset",
+    };
+    renderMessages();
+    renderComposer();
+    renderOperatorPanel();
+    updateSessionStatus();
+    elements.userInput.focus();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#topBar")) {
+      if (!state.isCatalogOpen && !state.isSessionMenuOpen) {
+        return;
+      }
+
+      state.isCatalogOpen = false;
+      state.isSessionMenuOpen = false;
+      renderOperatorPanel();
+    }
   });
 
   elements.chatHistory.addEventListener("click", async (event) => {
@@ -1461,28 +1586,21 @@ function bindEvents() {
 
 async function initApp() {
   elements = {
-    appTitle: document.getElementById("appTitle"),
-    appSubtitle: document.getElementById("appSubtitle"),
     chatForm: document.getElementById("chatForm"),
     chatHistory: document.getElementById("chatHistory"),
     chatStatus: document.getElementById("chatStatus"),
-    composerPresets: document.getElementById("composerPresets"),
     featuredModelList: document.getElementById("featuredModelList"),
-    inputHint: document.getElementById("inputHint"),
     modelCatalogList: document.getElementById("modelCatalogList"),
     modelCatalogPanel: document.getElementById("modelCatalogPanel"),
-    modelCatalogPreview: document.getElementById("modelCatalogPreview"),
     modelCatalogToggle: document.getElementById("modelCatalogToggle"),
-    modelMeta: document.getElementById("modelMeta"),
     modelSearchInput: document.getElementById("modelSearchInput"),
-    resetButton: document.getElementById("resetButton"),
     sendButton: document.getElementById("sendButton"),
-    sessionHeadline: document.getElementById("sessionHeadline"),
-    sessionMeta: document.getElementById("sessionMeta"),
-    sessionSummary: document.getElementById("sessionSummary"),
-    starterPrompts: document.getElementById("starterPrompts"),
+    newChatButton: document.getElementById("newChatButton"),
+    sessionList: document.getElementById("sessionList"),
+    sessionMenuToggle: document.getElementById("sessionMenuToggle"),
+    sessionMenuPanel: document.getElementById("sessionMenuPanel"),
+    clearAllSessionsButton: document.getElementById("clearAllSessionsButton"),
     userInput: document.getElementById("userInput"),
-    workspaceBadges: document.getElementById("workspaceBadges"),
   };
 
   bindEvents();
@@ -1492,6 +1610,7 @@ async function initApp() {
   try {
     await loadConfig();
     renderShell();
+    restoreLocalSessionStore();
     renderOperatorPanel();
     renderMessages();
     renderComposer();

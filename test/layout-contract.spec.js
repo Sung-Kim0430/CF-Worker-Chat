@@ -2,24 +2,41 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-test("index.html exposes the chat-first layout anchors", () => {
+test("index.html exposes the minimal top-bar chat shell anchors", () => {
   const html = fs.readFileSync("public/index.html", "utf8");
 
   for (const id of [
     "topBar",
     "chatWorkspace",
-    "sessionSummary",
-    "composerPresets",
-    "composerActions",
+    "modelPicker",
     "featuredModelList",
     "modelCatalogToggle",
-    "modelCatalogPreview",
     "modelCatalogPanel",
     "modelSearchInput",
     "modelCatalogList",
-    "starterPrompts",
+    "sessionMenuToggle",
+    "sessionMenuPanel",
+    "sessionList",
+    "newChatButton",
+    "clearAllSessionsButton",
+    "chatForm",
+    "chatHistory",
+    "userInput",
+    "sendButton",
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
+  }
+
+  for (const removedId of [
+    "sessionSummary",
+    "composerPresets",
+    "starterPrompts",
+    "workspaceBadges",
+    "appTitle",
+    "appSubtitle",
+    "modelCatalogPreview",
+  ]) {
+    assert.doesNotMatch(html, new RegExp(`id="${removedId}"`));
   }
 
   assert.match(html, /skip-link/);

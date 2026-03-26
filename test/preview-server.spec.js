@@ -56,7 +56,10 @@ test("preview server exposes the current UI and mock chat endpoints without Wran
     const pageResponse = await fetch(`http://127.0.0.1:${PREVIEW_PORT}/`);
     const pageHtml = await pageResponse.text();
 
-    assert.match(pageHtml, /modelCatalogPreview/);
+    assert.match(pageHtml, /modelPicker/);
+    assert.match(pageHtml, /sessionMenuToggle/);
+    assert.match(pageHtml, /newChatButton/);
+    assert.doesNotMatch(pageHtml, /modelCatalogPreview/);
     assert.doesNotMatch(pageHtml, /page-orb/);
 
     const chatResponse = await fetch(`http://127.0.0.1:${PREVIEW_PORT}/api/chat`, {

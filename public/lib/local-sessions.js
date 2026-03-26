@@ -54,12 +54,16 @@ function normalizeMessage(message = {}) {
     normalized.createdAt = clampTimestamp(message.createdAt, 0);
   }
 
-  if ("streaming" in message) {
-    normalized.streaming = Boolean(message.streaming);
+  if ("streaming" in message && !message.streaming) {
+    normalized.streaming = false;
   }
 
   if ("error" in message) {
     normalized.error = Boolean(message.error);
+  }
+
+  if (message.includeInHistory === false) {
+    normalized.includeInHistory = false;
   }
 
   return normalized;
