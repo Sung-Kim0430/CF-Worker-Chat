@@ -85,9 +85,15 @@
         ></div>
 
         <aside id="sessionSidebar" class="session-sidebar panel" data-open="false">
-          <div class="session-sidebar-top">
+          <div id="sessionSidebarHeader" class="session-sidebar-header">
             <div class="session-sidebar-actions">
-              <button id="newChatButton" class="primary-button" type="button">新对话</button>
+              <button
+                id="newChatButton"
+                class="ghost-button sidebar-new-chat-button"
+                type="button"
+              >
+                新对话
+              </button>
               <button
                 id="sessionSidebarCloseButton"
                 class="ghost-button compact-button mobile-only-button"
@@ -122,12 +128,14 @@
             </div>
           </div>
 
-          <div id="sessionList" class="session-list"></div>
+          <div id="sessionSidebarContent" class="session-sidebar-content">
+            <div id="sessionList" class="session-list"></div>
+          </div>
 
           <div class="session-sidebar-footer">
             <button
               id="clearAllSessionsButton"
-              class="ghost-button compact-button danger-button"
+              class="ghost-button compact-button sidebar-secondary-action danger-button"
               type="button"
             >
               清空全部

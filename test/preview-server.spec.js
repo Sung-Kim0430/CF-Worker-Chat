@@ -58,6 +58,8 @@ test("preview server exposes the current UI and mock chat endpoints without Wran
 
     assert.match(pageHtml, /modelPicker/);
     assert.match(pageHtml, /sessionSidebar/);
+    assert.match(pageHtml, /sessionSidebarHeader/);
+    assert.match(pageHtml, /sessionSidebarContent/);
     assert.match(pageHtml, /sessionSidebarToggle/);
     assert.match(pageHtml, /sessionSidebarCloseButton/);
     assert.match(pageHtml, /sessionSearchInput/);

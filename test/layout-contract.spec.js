@@ -15,6 +15,8 @@ test("index.html exposes the sidebar history shell anchors", () => {
     "modelSearchInput",
     "modelCatalogList",
     "sessionSidebar",
+    "sessionSidebarHeader",
+    "sessionSidebarContent",
     "sessionSidebarToggle",
     "sessionSidebarCloseButton",
     "sessionSearchInput",
