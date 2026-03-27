@@ -316,6 +316,30 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+export function buildEmptyStateMarkup({
+  title = "开始新的对话",
+  note = "选择模型后，直接输入消息。",
+  detail = "",
+} = {}) {
+  const safeTitle = escapeHtml(title);
+  const safeNote = typeof note === "string" && note.trim()
+    ? `<p class="empty-state-note">${escapeHtml(note)}</p>`
+    : "";
+  const safeDetail = typeof detail === "string" && detail.trim()
+    ? `<p class="empty-state-detail">${escapeHtml(detail)}</p>`
+    : "";
+
+  return `
+    <section class="empty-state">
+      <div class="empty-state-copy">
+        <h2 class="empty-state-heading">${safeTitle}</h2>
+        ${safeNote}
+        ${safeDetail}
+      </div>
+    </section>
+  `;
+}
+
 function decodeHtmlEntities(value) {
   return String(value ?? "")
     .replaceAll("&lt;", "<")
@@ -1645,11 +1669,7 @@ function renderMessages() {
   );
 
   if (state.history.length === 0) {
-    elements.chatHistory.innerHTML = `
-      <section class="empty-state">
-        <p>开始新的对话。</p>
-      </section>
-    `;
+    elements.chatHistory.innerHTML = buildEmptyStateMarkup();
     lastRenderedHistorySnapshot = nextHistorySnapshot;
     return;
   }
@@ -2301,13 +2321,11 @@ async function initApp() {
     };
     updateSessionStatus();
     if (elements.chatHistory) {
-      elements.chatHistory.innerHTML = `
-        <section class="empty-state">
-          <p class="section-label">Configuration Error</p>
-          <h3>页面已加载，但运行配置未能初始化。</h3>
-          <p>${escapeHtml(error instanceof Error ? error.message : "未知错误")}</p>
-        </section>
-      `;
+      elements.chatHistory.innerHTML = buildEmptyStateMarkup({
+        title: "页面已加载，但运行配置未能初始化。",
+        note: "",
+        detail: error instanceof Error ? error.message : "未知错误",
+      });
     }
   }
 }

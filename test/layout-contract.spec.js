@@ -130,6 +130,10 @@ test("styles.css centers the empty-state copy within the chat area", () => {
   assert.match(styles, /\.empty-state\s*\{[^}]*display:\s*grid/i);
   assert.match(styles, /\.empty-state\s*\{[^}]*place-items:\s*center/i);
   assert.match(styles, /\.empty-state\s*\{[^}]*text-align:\s*center/i);
+  assert.match(styles, /\.empty-state\s*\{[^}]*gap:\s*12px/i);
+  assert.match(styles, /\.empty-state\s*\{[^}]*min-height:\s*clamp\(240px,\s*46vh,\s*380px\)/i);
+  assert.match(styles, /\.empty-state-heading\s*\{[^}]*font-size:\s*1\.32rem/i);
+  assert.match(styles, /\.empty-state-note\s*\{[^}]*font-size:\s*0\.95rem/i);
 });
 
 test("styles.css keeps the active sidebar session understated and app-like", () => {
@@ -189,14 +193,22 @@ test("styles.css gives sidebar session titles and timestamps a clearer reading h
 test("styles.css keeps the composer compact and quieter than the chat surface", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
-  assert.match(styles, /\.composer\s*\{[^}]*padding:\s*10px/i);
-  assert.match(styles, /\.composer\s*\{[^}]*border-radius:\s*20px/i);
+  assert.match(styles, /\.composer\s*\{[^}]*padding:\s*0/i);
+  assert.match(styles, /\.composer\s*\{[^}]*border:\s*none/i);
+  assert.match(styles, /\.composer\s*\{[^}]*background:\s*transparent/i);
   assert.match(styles, /\.composer-input-shell\s*\{[^}]*position:\s*relative/i);
-  assert.match(styles, /#userInput\s*\{[^}]*min-height:\s*72px/i);
-  assert.match(styles, /#userInput\s*\{[^}]*padding:\s*13px 88px 56px 14px/i);
+  assert.match(styles, /\.composer-input-shell\s*\{[^}]*display:\s*grid/i);
+  assert.match(styles, /\.composer-input-shell\s*\{[^}]*padding:\s*8px/i);
+  assert.match(styles, /\.composer-input-shell\s*\{[^}]*border-radius:\s*24px/i);
+  assert.match(styles, /\.composer-input-shell:focus-within\s*\{[^}]*box-shadow:\s*0 0 0 4px rgba\(37,\s*99,\s*235,\s*0\.08\)/i);
+  assert.match(styles, /#userInput\s*\{[^}]*min-height:\s*68px/i);
+  assert.match(styles, /#userInput\s*\{[^}]*padding:\s*14px 92px 18px 16px/i);
+  assert.match(styles, /#userInput\s*\{[^}]*border:\s*none/i);
+  assert.match(styles, /#userInput\s*\{[^}]*background:\s*transparent/i);
   assert.match(styles, /\.composer-send-button\s*\{[^}]*position:\s*absolute/i);
-  assert.match(styles, /\.composer-send-button\s*\{[^}]*inset-inline-end:\s*10px/i);
-  assert.match(styles, /\.composer-send-button\s*\{[^}]*bottom:\s*10px/i);
+  assert.match(styles, /\.composer-send-button\s*\{[^}]*inset-inline-end:\s*8px/i);
+  assert.match(styles, /\.composer-send-button\s*\{[^}]*bottom:\s*8px/i);
+  assert.match(styles, /\.composer-send-button\s*\{[^}]*border-radius:\s*14px/i);
 });
 
 test("styles.css keeps the sidebar header shaped like a compact workspace control rail", () => {
@@ -230,7 +242,15 @@ test("styles.css centers desktop chat reading width for calmer conversation rhyt
 
   assert.match(styles, /\.chat-history-surface\s*\{[^}]*width:\s*min\(100%,\s*960px\)/i);
   assert.match(styles, /\.chat-composer-shell\s*\{[^}]*width:\s*min\(100%,\s*960px\)/i);
-  assert.match(styles, /\.message-card\s*\{[^}]*max-width:\s*min\(82%,\s*74ch\)/i);
+  assert.match(styles, /\.chat-history\s*\{[^}]*gap:\s*14px/i);
+  assert.match(styles, /\.message-card\s*\{[^}]*max-width:\s*min\(80%,\s*72ch\)/i);
+  assert.match(styles, /\.message-card\s*\{[^}]*border-radius:\s*18px/i);
+  assert.match(styles, /\.message-card\s*\{[^}]*box-shadow:\s*0 1px 2px rgba\(15,\s*23,\s*42,\s*0\.04\)/i);
+  assert.match(styles, /\.message-meta\s*\{[^}]*align-items:\s*baseline/i);
+  assert.match(styles, /\.message-role\s*\{[^}]*font-size:\s*0\.72rem/i);
+  assert.match(styles, /\.message-pill\s*\{[^}]*padding:\s*4px 8px/i);
+  assert.match(styles, /\.message-card.assistant\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.92\)/i);
+  assert.match(styles, /\.message-card.user\s*\{[^}]*background:\s*rgba\(47,\s*72,\s*158,\s*0\.96\)/i);
 });
 
 test("styles.css keeps the top bar low-chrome and focused on model switching", () => {
@@ -311,7 +331,7 @@ test("styles.css keeps the model catalog panel compact and search-first", () => 
 test("styles.css keeps chat messages calm and readable without oversized bubbles", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
-  assert.match(styles, /\.chat-history\s*\{[^}]*gap:\s*16px/i);
+  assert.match(styles, /\.chat-history\s*\{[^}]*gap:\s*14px/i);
   assert.match(styles, /\.message-card\s*\{[^}]*padding:\s*15px 16px/i);
   assert.match(styles, /\.message-content\s*\{[^}]*line-height:\s*1\.72/i);
 });
@@ -320,7 +340,7 @@ test("styles.css keeps message meta quiet and information-dense", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
   assert.match(styles, /\.message-meta\s*\{[^}]*gap:\s*10px/i);
-  assert.match(styles, /\.message-role\s*\{[^}]*font-size:\s*0\.76rem/i);
+  assert.match(styles, /\.message-role\s*\{[^}]*font-size:\s*0\.72rem/i);
   assert.match(styles, /\.message-pill\s*\{[^}]*font-size:\s*0\.71rem/i);
 });
 
@@ -493,6 +513,6 @@ test("styles.css keeps the sidebar shell flatter and assistant cards quieter for
 
   assert.match(styles, /\.session-sidebar\s*\{[^}]*padding:\s*8px/i);
   assert.match(styles, /\.session-sidebar\s*\{[^}]*border-radius:\s*20px/i);
-  assert.match(styles, /\.message-card\s*\{[^}]*box-shadow:\s*0 5px 12px rgba\(15,\s*23,\s*42,\s*0\.03\)/i);
+  assert.match(styles, /\.message-card\s*\{[^}]*box-shadow:\s*0 1px 2px rgba\(15,\s*23,\s*42,\s*0\.04\)/i);
   assert.match(styles, /\.message-card\.assistant\s*\{[^}]*border-color:\s*rgba\(15,\s*23,\s*42,\s*0\.055\)/i);
 });

@@ -155,6 +155,33 @@ test("groupSessionsByUpdatedAt organizes recent chats into recency buckets while
   );
 });
 
+test("buildEmptyStateMarkup renders a quiet default first screen with title and supporting note", () => {
+  assert.equal(typeof app.buildEmptyStateMarkup, "function");
+
+  const html = app.buildEmptyStateMarkup();
+
+  assert.match(html, /class="empty-state"/);
+  assert.match(html, /empty-state-heading/);
+  assert.match(html, /开始新的对话/);
+  assert.match(html, /empty-state-note/);
+  assert.match(html, /选择模型后，直接输入消息/);
+});
+
+test("buildEmptyStateMarkup supports custom fallback detail without extra chrome", () => {
+  assert.equal(typeof app.buildEmptyStateMarkup, "function");
+
+  const html = app.buildEmptyStateMarkup({
+    title: "页面已加载，但运行配置未能初始化。",
+    detail: "boom",
+  });
+
+  assert.match(html, /empty-state-heading/);
+  assert.match(html, /页面已加载，但运行配置未能初始化/);
+  assert.match(html, /empty-state-detail/);
+  assert.match(html, /boom/);
+  assert.doesNotMatch(html, /meta-card|tips-panel|page-orb/);
+});
+
 
 
 test("buildAssistantContentPayload keeps streaming replies in plain-text mode to reduce flicker", () => {
