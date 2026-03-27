@@ -1913,31 +1913,59 @@ a:focus-visible {
   .top-bar-controls {
     gap: 6px;
     align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    min-width: 0;
   }
 
   .model-picker {
     width: auto;
+    flex: 1 1 0;
+    min-width: 0;
     flex-direction: row;
     align-items: center;
+    justify-content: flex-start;
     padding: 3px 4px;
     gap: 4px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.56);
   }
 
   .featured-model-list {
     width: auto;
+    flex: 1 1 auto;
     min-width: 0;
+    gap: 3px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .featured-model-list::-webkit-scrollbar {
+    display: none;
   }
 
   .featured-model-list .model-choice {
     width: auto;
-    min-height: 28px;
-    padding: 4px 7px;
+    min-height: 27px;
+    padding: 3px 6px;
+    border-radius: 10px;
+  }
+
+  .featured-model-list .model-choice strong {
+    font-size: 0.76rem;
   }
 
   #sessionSidebarToggle,
   #modelCatalogToggle {
     min-height: 30px;
     padding: 4px 9px;
+  }
+
+  #modelCatalogToggle {
+    flex: 0 0 auto;
+    border-radius: 10px;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.74);
   }
 
   .sidebar-toggle-button {

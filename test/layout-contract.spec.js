@@ -352,6 +352,59 @@ test("styles.css keeps the small-screen top bar compact instead of turning contr
   );
 });
 
+test("styles.css keeps the small-screen model picker unified with the compact top bar", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?justify-content:\s*flex-start/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?flex-wrap:\s*nowrap/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.model-picker\s*\{[\s\S]*?flex:\s*1 1 0/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.model-picker\s*\{[\s\S]*?border-radius:\s*14px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.model-picker\s*\{[\s\S]*?background:\s*rgba\(255,\s*255,\s*255,\s*0\.56\)/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.featured-model-list\s*\{[\s\S]*?gap:\s*3px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.featured-model-list\s*\{[\s\S]*?scrollbar-width:\s*none/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.featured-model-list\s+\.model-choice\s*\{[\s\S]*?min-height:\s*27px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.featured-model-list\s+\.model-choice\s*\{[\s\S]*?padding:\s*3px 6px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.featured-model-list\s+\.model-choice\s+strong\s*\{[\s\S]*?font-size:\s*0\.76rem/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?#modelCatalogToggle\s*\{[\s\S]*?border-radius:\s*10px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?#modelCatalogToggle\s*\{[\s\S]*?white-space:\s*nowrap/i,
+  );
+});
+
 test("styles.css keeps the model catalog list switcher-like and compact", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
