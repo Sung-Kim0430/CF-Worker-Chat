@@ -80,6 +80,14 @@ export function getSessionSidebarToggleLabel({
   return isSidebarCollapsed ? "显示对话栏" : "隐藏对话栏";
 }
 
+export function shouldCloseSessionSidebar({
+  isMobileViewport = false,
+  isSidebarOpen = false,
+  isSidebarCollapsed = false,
+} = {}) {
+  return isMobileViewport ? isSidebarOpen : !isSidebarCollapsed;
+}
+
 export function getNextSessionActionMenuId(currentOpenSessionId = null, requestedSessionId = null) {
   const normalizedCurrent = currentOpenSessionId || null;
   const normalizedRequested = requestedSessionId || null;
@@ -1985,7 +1993,13 @@ function bindEvents() {
   });
 
   elements.sessionSidebarToggle.addEventListener("click", () => {
-    if (state.isSessionSidebarOpen) {
+    if (
+      shouldCloseSessionSidebar({
+        isMobileViewport: isMobileSidebarViewport(),
+        isSidebarOpen: state.isSessionSidebarOpen,
+        isSidebarCollapsed: state.isSessionSidebarCollapsed,
+      })
+    ) {
       closeSessionSidebar();
       return;
     }

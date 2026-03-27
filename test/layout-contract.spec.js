@@ -30,6 +30,7 @@ test("index.html exposes the sidebar history shell anchors", () => {
     "clearAllSessionsButton",
     "chatForm",
     "chatComposerShell",
+    "composerInputShell",
     "chatHistory",
     "chatHistorySurface",
     "userInput",
@@ -174,8 +175,12 @@ test("styles.css keeps the composer compact and quieter than the chat surface", 
 
   assert.match(styles, /\.composer\s*\{[^}]*padding:\s*10px/i);
   assert.match(styles, /\.composer\s*\{[^}]*border-radius:\s*20px/i);
+  assert.match(styles, /\.composer-input-shell\s*\{[^}]*position:\s*relative/i);
   assert.match(styles, /#userInput\s*\{[^}]*min-height:\s*72px/i);
-  assert.match(styles, /\.composer-actions\s*\{[^}]*margin-top:\s*8px/i);
+  assert.match(styles, /#userInput\s*\{[^}]*padding:\s*13px 88px 56px 14px/i);
+  assert.match(styles, /\.composer-send-button\s*\{[^}]*position:\s*absolute/i);
+  assert.match(styles, /\.composer-send-button\s*\{[^}]*inset-inline-end:\s*10px/i);
+  assert.match(styles, /\.composer-send-button\s*\{[^}]*bottom:\s*10px/i);
 });
 
 test("styles.css keeps the sidebar header shaped like a compact workspace control rail", () => {

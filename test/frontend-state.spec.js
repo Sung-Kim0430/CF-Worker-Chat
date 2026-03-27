@@ -58,6 +58,46 @@ test("getSessionSidebarToggleLabel switches copy for desktop collapse and mobile
   );
 });
 
+test("shouldCloseSessionSidebar distinguishes desktop collapse state from mobile drawer state", () => {
+  assert.equal(typeof app.shouldCloseSessionSidebar, "function");
+
+  assert.equal(
+    app.shouldCloseSessionSidebar({
+      isMobileViewport: false,
+      isSidebarOpen: false,
+      isSidebarCollapsed: false,
+    }),
+    true,
+  );
+
+  assert.equal(
+    app.shouldCloseSessionSidebar({
+      isMobileViewport: false,
+      isSidebarOpen: false,
+      isSidebarCollapsed: true,
+    }),
+    false,
+  );
+
+  assert.equal(
+    app.shouldCloseSessionSidebar({
+      isMobileViewport: true,
+      isSidebarOpen: true,
+      isSidebarCollapsed: false,
+    }),
+    true,
+  );
+
+  assert.equal(
+    app.shouldCloseSessionSidebar({
+      isMobileViewport: true,
+      isSidebarOpen: false,
+      isSidebarCollapsed: false,
+    }),
+    false,
+  );
+});
+
 test("getNextSessionActionMenuId toggles the same menu closed and switches cleanly between sessions", () => {
   assert.equal(typeof app.getNextSessionActionMenuId, "function");
 

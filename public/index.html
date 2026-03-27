@@ -154,13 +154,19 @@
 
           <div id="chatComposerShell" class="chat-composer-shell">
             <form id="chatForm" class="composer" autocomplete="off">
-              <textarea
-                id="userInput"
-                rows="1"
-                placeholder="输入消息"
-              ></textarea>
-              <div id="composerActions" class="composer-actions">
-                <button id="sendButton" class="primary-button" type="submit">发送</button>
+              <div id="composerInputShell" class="composer-input-shell">
+                <textarea
+                  id="userInput"
+                  rows="1"
+                  placeholder="输入消息"
+                ></textarea>
+                <button
+                  id="sendButton"
+                  class="primary-button composer-send-button"
+                  type="submit"
+                >
+                  发送
+                </button>
               </div>
             </form>
           </div>
