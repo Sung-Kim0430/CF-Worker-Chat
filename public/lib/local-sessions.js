@@ -280,6 +280,8 @@ function getDayStartTimestamp(value) {
   return date.getTime();
 }
 
+const WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
 export function formatSessionUpdatedLabel(updatedAt, now = Date.now()) {
   const updatedTime = clampTimestamp(updatedAt, resolveNow(now));
   const nowTime = resolveNow(now);
@@ -310,6 +312,54 @@ export function formatSessionUpdatedLabel(updatedAt, now = Date.now()) {
   return `${pad2(updatedDate.getMonth() + 1)}-${pad2(updatedDate.getDate())} ${pad2(
     updatedDate.getHours(),
   )}:${pad2(updatedDate.getMinutes())}`;
+}
+
+export function formatSessionSidebarTimeLabel(updatedAt, now = Date.now()) {
+  const updatedTime = clampTimestamp(updatedAt, resolveNow(now));
+  const nowTime = resolveNow(now);
+  const delta = Math.max(nowTime - updatedTime, 0);
+
+  if (delta < 60_000) {
+    return "刚刚";
+  }
+
+  if (delta < 60 * 60_000) {
+    return `${Math.max(1, Math.floor(delta / 60_000))}分钟前`;
+  }
+
+  const updatedDate = new Date(updatedTime);
+  const nowDate = new Date(nowTime);
+
+  if (isSameDay(updatedDate, nowDate)) {
+    return `${pad2(updatedDate.getHours())}:${pad2(updatedDate.getMinutes())}`;
+  }
+
+  const yesterday = new Date(nowTime);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (isSameDay(updatedDate, yesterday)) {
+    return "昨天";
+  }
+
+  const dayDelta = Math.max(
+    0,
+    Math.floor(
+      (getDayStartTimestamp(nowTime) - getDayStartTimestamp(updatedTime)) /
+        (24 * 60 * 60_000),
+    ),
+  );
+
+  if (dayDelta <= 6) {
+    return WEEKDAY_LABELS[updatedDate.getDay()];
+  }
+
+  if (updatedDate.getFullYear() === nowDate.getFullYear()) {
+    return `${pad2(updatedDate.getMonth() + 1)}-${pad2(updatedDate.getDate())}`;
+  }
+
+  return `${updatedDate.getFullYear()}-${pad2(updatedDate.getMonth() + 1)}-${pad2(
+    updatedDate.getDate(),
+  )}`;
 }
 
 export function getSessionUpdatedGroupLabel(updatedAt, now = Date.now()) {

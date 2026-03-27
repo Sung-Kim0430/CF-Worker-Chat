@@ -155,6 +155,53 @@ test("groupSessionsByUpdatedAt organizes recent chats into recency buckets while
   );
 });
 
+test("buildSessionOptionDisplayModel prefers a distinct preview summary and compact time label", () => {
+  assert.equal(typeof app.buildSessionOptionDisplayModel, "function");
+
+  const model = app.buildSessionOptionDisplayModel(
+    {
+      title: "重构侧栏列表",
+      updatedAt: new Date(2026, 2, 26, 9, 5).getTime(),
+      history: [
+        { role: "user", content: "重构侧栏列表" },
+        { role: "assistant", content: "我已经把 hover、active 和时间层级重新梳理。" },
+      ],
+    },
+    {
+      nowTime: new Date(2026, 2, 26, 15, 0).getTime(),
+      modelLabel: "GLM-4.7 Flash",
+    },
+  );
+
+  assert.equal(model.titleText, "重构侧栏列表");
+  assert.equal(model.timeLabel, "09:05");
+  assert.equal(model.secondaryTone, "summary");
+  assert.match(model.secondaryText, /hover、active 和时间层级重新梳理/);
+});
+
+test("buildSessionOptionDisplayModel falls back to model text when preview mostly repeats the title", () => {
+  assert.equal(typeof app.buildSessionOptionDisplayModel, "function");
+
+  const model = app.buildSessionOptionDisplayModel(
+    {
+      title: "请继续优化 Claude 风格侧栏",
+      updatedAt: new Date(2026, 2, 26, 14, 50).getTime(),
+      history: [
+        { role: "user", content: "请继续优化 Claude 风格侧栏" },
+        { role: "assistant", content: "请继续优化 Claude 风格侧栏，保留摘要预览并弱化高亮。" },
+      ],
+    },
+    {
+      nowTime: new Date(2026, 2, 26, 15, 0).getTime(),
+      modelLabel: "GLM-4.7 Flash",
+    },
+  );
+
+  assert.equal(model.timeLabel, "10分钟前");
+  assert.equal(model.secondaryTone, "meta");
+  assert.equal(model.secondaryText, "GLM-4.7 Flash");
+});
+
 test("buildEmptyStateMarkup renders a quiet default first screen with title and supporting note", () => {
   assert.equal(typeof app.buildEmptyStateMarkup, "function");
 

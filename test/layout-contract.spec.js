@@ -141,7 +141,7 @@ test("styles.css keeps the active sidebar session understated and app-like", () 
 
   assert.match(styles, /\.session-option\.active\s*\{[^}]*box-shadow:\s*none/i);
   assert.match(styles, /\.session-option\.active\s*\{[^}]*background:\s*rgba\(/i);
-  assert.match(styles, /\.session-option\.active::before\s*\{[^}]*width:\s*3px/i);
+  assert.match(styles, /\.session-option\.active::before\s*\{[^}]*width:\s*2px/i);
 });
 
 test("styles.css keeps featured model pills compact and low-noise", () => {
@@ -171,23 +171,27 @@ test("styles.css keeps the desktop workspace balanced between a compact sidebar 
 test("styles.css keeps the sidebar session list dense and low-chrome", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
-  assert.match(styles, /\.session-list\s*\{[^}]*gap:\s*10px/i);
-  assert.match(styles, /\.session-group-list\s*\{[^}]*gap:\s*2px/i);
+  assert.match(styles, /\.session-list\s*\{[^}]*gap:\s*12px/i);
+  assert.match(styles, /\.session-group\s*\{[^}]*gap:\s*6px/i);
+  assert.match(styles, /\.session-group-list\s*\{[^}]*gap:\s*4px/i);
   assert.match(styles, /\.session-group-label\s*\{[^}]*text-transform:\s*uppercase/i);
-  assert.match(styles, /\.session-option\s*\{[^}]*border-radius:\s*14px/i);
-  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*10px 44px 10px 12px/i);
+  assert.match(styles, /\.session-option\s*\{[^}]*border-radius:\s*16px/i);
+  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*12px 44px 12px 12px/i);
 });
 
 test("styles.css gives sidebar session titles and timestamps a clearer reading hierarchy", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
-  assert.match(styles, /\.session-option-title-row\s*\{[^}]*gap:\s*8px/i);
-  assert.match(styles, /\.session-option-title-row\s*\{[^}]*align-items:\s*baseline/i);
-  assert.match(styles, /\.session-option small\s*\{[^}]*max-width:\s*88px/i);
-  assert.match(styles, /\.session-option small\s*\{[^}]*font-size:\s*0\.72rem/i);
+  assert.match(styles, /\.session-option-title-row\s*\{[^}]*display:\s*grid/i);
+  assert.match(styles, /\.session-option-title-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto/i);
+  assert.match(styles, /\.session-option-title-row\s*\{[^}]*gap:\s*10px/i);
+  assert.match(styles, /\.session-option-title-row\s*\{[^}]*align-items:\s*start/i);
+  assert.match(styles, /\.session-option small\s*\{[^}]*max-width:\s*72px/i);
+  assert.match(styles, /\.session-option small\s*\{[^}]*font-size:\s*0\.68rem/i);
   assert.match(styles, /\.session-option small\s*\{[^}]*text-align:\s*right/i);
-  assert.match(styles, /\.session-option-copy\s*\{[^}]*font-size:\s*0\.76rem/i);
-  assert.match(styles, /\.session-option-meta\s*\{[^}]*font-size:\s*0\.67rem/i);
+  assert.match(styles, /\.session-option-copy\s*\{[^}]*font-size:\s*0\.78rem/i);
+  assert.match(styles, /\.session-option-copy\s*\{[^}]*line-height:\s*1\.45/i);
+  assert.match(styles, /\.session-option-copy\[data-tone="meta"\]\s*\{[^}]*color:\s*rgba\(100,\s*116,\s*139,\s*0\.82\)/i);
 });
 
 test("styles.css keeps the composer compact and quieter than the chat surface", () => {
@@ -231,10 +235,11 @@ test("styles.css keeps sidebar search and footer controls flatter than the main 
 test("styles.css keeps sidebar hover and active rows soft instead of button-like", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
-  assert.match(styles, /\.session-option:hover\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.68\)/i);
+  assert.match(styles, /\.session-option:hover\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.74\)/i);
   assert.match(styles, /\.session-option.active\s*\{[^}]*border-color:\s*transparent/i);
-  assert.match(styles, /\.session-option.active\s*\{[^}]*background:\s*rgba\(244,\s*247,\s*255,\s*0\.82\)/i);
-  assert.match(styles, /\.session-option.active::before\s*\{[^}]*background:\s*rgba\(37,\s*99,\s*235,\s*0\.42\)/i);
+  assert.match(styles, /\.session-option.active\s*\{[^}]*background:\s*rgba\(248,\s*249,\s*252,\s*0\.96\)/i);
+  assert.match(styles, /\.session-option.active::before\s*\{[^}]*width:\s*2px/i);
+  assert.match(styles, /\.session-option.active::before\s*\{[^}]*background:\s*rgba\(15,\s*23,\s*42,\s*0\.22\)/i);
 });
 
 test("styles.css centers desktop chat reading width for calmer conversation rhythm", () => {
@@ -503,7 +508,7 @@ test("styles.css keeps sidebar session actions floating so titles do not stay co
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
   assert.match(styles, /\.session-option\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/i);
-  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*10px 44px 10px 12px/i);
+  assert.match(styles, /\.session-option-trigger\s*\{[^}]*padding:\s*12px 44px 12px 12px/i);
   assert.match(styles, /\.session-option-actions\s*\{[^}]*position:\s*absolute/i);
   assert.match(styles, /\.session-option-actions\s*\{[^}]*inset-inline-end:\s*8px/i);
 });

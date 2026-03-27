@@ -5,6 +5,7 @@ import {
   buildInitialSessionStore,
   clearAllSessions,
   createEmptySession,
+  formatSessionSidebarTimeLabel,
   formatSessionUpdatedLabel,
   getSessionUpdatedGroupLabel,
   getSessionPreviewText,
@@ -139,6 +140,33 @@ test("formatSessionUpdatedLabel uses calendar-aware labels for older sessions", 
   assert.equal(
     formatSessionUpdatedLabel(new Date(2026, 1, 14, 18, 20).getTime(), now),
     "02-14 18:20",
+  );
+});
+
+test("formatSessionSidebarTimeLabel keeps sidebar timestamps compact across recency ranges", () => {
+  const now = new Date(2026, 2, 26, 15, 0).getTime();
+
+  assert.equal(formatSessionSidebarTimeLabel(now - 30_000, now), "刚刚");
+  assert.equal(formatSessionSidebarTimeLabel(now - 10 * 60_000, now), "10分钟前");
+  assert.equal(
+    formatSessionSidebarTimeLabel(new Date(2026, 2, 26, 9, 5).getTime(), now),
+    "09:05",
+  );
+  assert.equal(
+    formatSessionSidebarTimeLabel(new Date(2026, 2, 25, 21, 8).getTime(), now),
+    "昨天",
+  );
+  assert.equal(
+    formatSessionSidebarTimeLabel(new Date(2026, 2, 23, 18, 20).getTime(), now),
+    "周一",
+  );
+  assert.equal(
+    formatSessionSidebarTimeLabel(new Date(2026, 1, 14, 18, 20).getTime(), now),
+    "02-14",
+  );
+  assert.equal(
+    formatSessionSidebarTimeLabel(new Date(2025, 1, 14, 18, 20).getTime(), now),
+    "2025-02-14",
   );
 });
 

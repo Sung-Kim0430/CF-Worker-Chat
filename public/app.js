@@ -18,6 +18,7 @@ import {
   buildSessionTitle,
   clearAllSessions,
   createNextSessionStore,
+  formatSessionSidebarTimeLabel,
   formatSessionUpdatedLabel,
   getSessionUpdatedGroupLabel,
   getSessionPreviewText,
@@ -118,6 +119,62 @@ export function groupSessionsByUpdatedAt(sessions = [], now = Date.now()) {
   });
 
   return groups;
+}
+
+function normalizeSidebarComparisonText(value = "") {
+  return String(value || "")
+    .replace(/[.…]/g, "")
+    .replace(/[\s"'“”‘’`【】［］()（）〔〕「」.,，。!?！？:：;；\-—_/]+/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function shouldUseDistinctSessionPreview(title = "", preview = "") {
+  const normalizedTitle = normalizeSidebarComparisonText(title);
+  const normalizedPreview = normalizeSidebarComparisonText(preview);
+
+  if (!normalizedPreview || normalizedPreview === normalizeSidebarComparisonText("空白对话")) {
+    return false;
+  }
+
+  if (!normalizedTitle) {
+    return true;
+  }
+
+  return !(
+    normalizedPreview === normalizedTitle ||
+    normalizedPreview.startsWith(normalizedTitle) ||
+    normalizedTitle.startsWith(normalizedPreview)
+  );
+}
+
+export function buildSessionOptionDisplayModel(
+  session = {},
+  {
+    nowTime = Date.now(),
+    modelLabel = "",
+  } = {},
+) {
+  const titleText =
+    typeof session?.title === "string" && session.title.trim()
+      ? session.title.trim()
+      : "新对话";
+  const previewText = getSessionPreviewText(session);
+  const compactModelLabel =
+    typeof modelLabel === "string" && modelLabel.trim() ? modelLabel.trim() : "";
+  const usePreview = shouldUseDistinctSessionPreview(titleText, previewText);
+  const secondaryText = usePreview
+    ? previewText
+    : compactModelLabel || previewText || "空白对话";
+  const secondaryTone = usePreview ? "summary" : compactModelLabel ? "meta" : "placeholder";
+
+  return {
+    titleText,
+    timeLabel: formatSessionSidebarTimeLabel(session?.updatedAt, nowTime),
+    timeTitle: formatSessionUpdatedLabel(session?.updatedAt, nowTime),
+    secondaryText,
+    secondaryTone,
+  };
 }
 
 export function normalizeStarterPrompt(prompt, index = 0) {
@@ -1441,20 +1498,14 @@ function renderSessionOption(
   } = {},
 ) {
   const isActive = session.id === activeSessionId;
-  const messageCount = Array.isArray(session.history) ? session.history.length : 0;
-  const timeLabel = formatSessionUpdatedLabel(session.updatedAt, nowTime);
-  const previewText = getSessionPreviewText(session);
-  const metaLabel = [
-    messageCount > 0 ? `${messageCount} 条消息` : "空白对话",
-    getCompactModelLabel(session.modelId),
-  ]
-    .filter(Boolean)
-    .join(" · ");
   const isRenaming = state.renamingSessionId === session.id;
   const isActionMenuOpen = state.openSessionActionMenuId === session.id;
-  const titleHtml = highlightSearchMatches(session.title || "新对话", query);
-  const previewHtml = highlightSearchMatches(previewText, query);
-  const metaHtml = highlightSearchMatches(metaLabel, query);
+  const viewModel = buildSessionOptionDisplayModel(session, {
+    nowTime,
+    modelLabel: getCompactModelLabel(session.modelId),
+  });
+  const titleHtml = highlightSearchMatches(viewModel.titleText, query);
+  const secondaryHtml = highlightSearchMatches(viewModel.secondaryText, query);
 
   if (isRenaming) {
     return `
@@ -1520,10 +1571,9 @@ function renderSessionOption(
       >
         <span class="session-option-title-row">
           <strong>${titleHtml}</strong>
-          <small>${escapeHtml(timeLabel)}</small>
+          <small title="${escapeHtml(viewModel.timeTitle)}">${escapeHtml(viewModel.timeLabel)}</small>
         </span>
-        <span class="session-option-copy">${previewHtml}</span>
-        <span class="session-option-meta">${metaHtml}</span>
+        <span class="session-option-copy" data-tone="${escapeHtml(viewModel.secondaryTone)}">${secondaryHtml}</span>
       </button>
       <div
         class="session-option-actions"
