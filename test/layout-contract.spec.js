@@ -101,6 +101,14 @@ test("index.html gives the top-bar sidebar toggle a stable icon-plus-label shell
   assert.match(html, /id="sessionSidebarToggleLabel"[^>]*>\s*对话记录\s*</i);
 });
 
+test("index.html gives the model-catalog toggle a stable icon-plus-label shell", () => {
+  const html = fs.readFileSync("public/index.html", "utf8");
+
+  assert.match(html, /id="modelCatalogToggleIcon"/i);
+  assert.match(html, /id="modelCatalogToggleLabel"/i);
+  assert.match(html, /id="modelCatalogToggleLabel"[^>]*>\s*更多模型\s*</i);
+});
+
 test("styles.css includes reduced-motion safeguards for animated UI", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
@@ -235,6 +243,8 @@ test("styles.css keeps the top bar low-chrome and focused on model switching", (
   assert.match(styles, /\.model-picker\s*\{[^}]*border-radius:\s*16px/i);
   assert.match(styles, /\.model-picker\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.62\)/i);
   assert.match(styles, /#sessionSidebarToggle,\s*#modelCatalogToggle\s*\{[^}]*min-height:\s*32px/i);
+  assert.match(styles, /\.model-catalog-toggle-button\s*\{[^}]*display:\s*inline-flex/i);
+  assert.match(styles, /\.model-catalog-toggle-button\s*\{[^}]*gap:\s*8px/i);
 });
 
 test("styles.css keeps the mobile sidebar drawer compact and app-like instead of oversized", () => {
@@ -258,6 +268,18 @@ test("styles.css keeps the sidebar toggle readable on desktop and gives the hidd
   assert.match(styles, /#sessionSidebarToggle\[aria-expanded="false"\]\s*\{[^}]*color:\s*var\(--ink\)/i);
   assert.match(styles, /#sessionSidebarToggle\[aria-expanded="false"\]\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.9\)/i);
   assert.match(styles, /#sessionSidebarToggle\[aria-expanded="true"\]\s*\{[^}]*background:\s*rgba\(244,\s*247,\s*255,\s*0\.92\)/i);
+});
+
+test("styles.css keeps the desktop model-catalog toggle aligned with the sidebar toggle control language", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(styles, /\.model-catalog-toggle-button\s*\{[^}]*display:\s*inline-flex/i);
+  assert.match(styles, /\.model-catalog-toggle-button\s*\{[^}]*white-space:\s*nowrap/i);
+  assert.match(styles, /\.model-catalog-toggle-icon\s*\{[^}]*width:\s*18px/i);
+  assert.match(styles, /\.model-catalog-toggle-icon\s*\{[^}]*height:\s*18px/i);
+  assert.match(styles, /\.model-catalog-toggle-label\s*\{[^}]*font-weight:\s*600/i);
+  assert.match(styles, /#modelCatalogToggle\[aria-expanded="false"\]\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.84\)/i);
+  assert.match(styles, /#modelCatalogToggle\[aria-expanded="true"\]\s*\{[^}]*background:\s*rgba\(244,\s*247,\s*255,\s*0\.92\)/i);
 });
 
 test("styles.css keeps sidebar row actions quiet and precise", () => {

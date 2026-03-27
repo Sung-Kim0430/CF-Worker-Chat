@@ -68,6 +68,12 @@ export function formatModelLabel(model) {
   return `${model.label} · ${model.speedTag} · ${model.costTag}`;
 }
 
+export function getModelCatalogToggleLabel({
+  isCatalogOpen = false,
+} = {}) {
+  return "更多模型";
+}
+
 export function getSessionSidebarToggleLabel({
 } = {}) {
   return "对话记录";
@@ -1359,9 +1365,14 @@ function renderModelCatalog() {
   const filteredModels = filterModelCatalog(allModels, state.modelCatalogQuery);
 
   elements.modelCatalogToggle.disabled = controlState.modelDisabled;
-  elements.modelCatalogToggle.textContent = state.isCatalogOpen
-    ? "收起模型"
-    : "更多模型";
+  const modelCatalogToggleLabel = getModelCatalogToggleLabel({
+    isCatalogOpen: state.isCatalogOpen,
+  });
+  if (elements.modelCatalogToggleLabel) {
+    elements.modelCatalogToggleLabel.textContent = modelCatalogToggleLabel;
+  } else {
+    elements.modelCatalogToggle.textContent = modelCatalogToggleLabel;
+  }
   elements.modelCatalogToggle.setAttribute(
     "aria-expanded",
     state.isCatalogOpen ? "true" : "false",
@@ -2249,6 +2260,7 @@ async function initApp() {
     modelCatalogList: document.getElementById("modelCatalogList"),
     modelCatalogPanel: document.getElementById("modelCatalogPanel"),
     modelCatalogToggle: document.getElementById("modelCatalogToggle"),
+    modelCatalogToggleLabel: document.getElementById("modelCatalogToggleLabel"),
     modelSearchInput: document.getElementById("modelSearchInput"),
     sendButton: document.getElementById("sendButton"),
     chatWorkspace: document.getElementById("chatWorkspace"),

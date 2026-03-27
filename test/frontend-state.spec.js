@@ -18,6 +18,24 @@ test("formatModelLabel adds clear speed and cost hints", () => {
   );
 });
 
+test("getModelCatalogToggleLabel keeps a fixed visible navigation label across catalog states", () => {
+  assert.equal(typeof app.getModelCatalogToggleLabel, "function");
+
+  assert.equal(
+    app.getModelCatalogToggleLabel({
+      isCatalogOpen: false,
+    }),
+    "更多模型",
+  );
+
+  assert.equal(
+    app.getModelCatalogToggleLabel({
+      isCatalogOpen: true,
+    }),
+    "更多模型",
+  );
+});
+
 test("getSessionSidebarToggleLabel keeps a fixed visible navigation label across sidebar states", () => {
   assert.equal(typeof app.getSessionSidebarToggleLabel, "function");
 
