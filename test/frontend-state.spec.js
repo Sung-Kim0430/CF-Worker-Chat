@@ -18,7 +18,7 @@ test("formatModelLabel adds clear speed and cost hints", () => {
   );
 });
 
-test("getSessionSidebarToggleLabel switches copy for desktop collapse and mobile drawer states", () => {
+test("getSessionSidebarToggleLabel keeps a fixed visible navigation label across sidebar states", () => {
   assert.equal(typeof app.getSessionSidebarToggleLabel, "function");
 
   assert.equal(
@@ -27,7 +27,7 @@ test("getSessionSidebarToggleLabel switches copy for desktop collapse and mobile
       isSidebarCollapsed: false,
       isSidebarOpen: false,
     }),
-    "隐藏对话栏",
+    "对话记录",
   );
 
   assert.equal(
@@ -36,7 +36,7 @@ test("getSessionSidebarToggleLabel switches copy for desktop collapse and mobile
       isSidebarCollapsed: true,
       isSidebarOpen: false,
     }),
-    "显示对话栏",
+    "对话记录",
   );
 
   assert.equal(
@@ -54,7 +54,7 @@ test("getSessionSidebarToggleLabel switches copy for desktop collapse and mobile
       isSidebarCollapsed: false,
       isSidebarOpen: true,
     }),
-    "收起对话",
+    "对话记录",
   );
 });
 

@@ -93,6 +93,14 @@ test("index.html keeps the desktop sidebar toggle as a dedicated control instead
   );
 });
 
+test("index.html gives the top-bar sidebar toggle a stable icon-plus-label shell", () => {
+  const html = fs.readFileSync("public/index.html", "utf8");
+
+  assert.match(html, /id="sessionSidebarToggleIcon"/i);
+  assert.match(html, /id="sessionSidebarToggleLabel"/i);
+  assert.match(html, /id="sessionSidebarToggleLabel"[^>]*>\s*对话记录\s*</i);
+});
+
 test("styles.css includes reduced-motion safeguards for animated UI", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
@@ -243,8 +251,13 @@ test("styles.css keeps the sidebar toggle readable on desktop and gives the hidd
 
   assert.match(styles, /\.sidebar-toggle-button\s*\{[^}]*display:\s*inline-flex/i);
   assert.match(styles, /\.sidebar-toggle-button\s*\{[^}]*white-space:\s*nowrap/i);
+  assert.match(styles, /\.sidebar-toggle-button\s*\{[^}]*gap:\s*8px/i);
+  assert.match(styles, /\.sidebar-toggle-icon\s*\{[^}]*width:\s*18px/i);
+  assert.match(styles, /\.sidebar-toggle-icon\s*\{[^}]*height:\s*18px/i);
+  assert.match(styles, /\.sidebar-toggle-label\s*\{[^}]*font-weight:\s*600/i);
   assert.match(styles, /#sessionSidebarToggle\[aria-expanded="false"\]\s*\{[^}]*color:\s*var\(--ink\)/i);
   assert.match(styles, /#sessionSidebarToggle\[aria-expanded="false"\]\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.9\)/i);
+  assert.match(styles, /#sessionSidebarToggle\[aria-expanded="true"\]\s*\{[^}]*background:\s*rgba\(244,\s*247,\s*255,\s*0\.92\)/i);
 });
 
 test("styles.css keeps sidebar row actions quiet and precise", () => {

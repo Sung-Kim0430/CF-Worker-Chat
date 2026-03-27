@@ -69,15 +69,8 @@ export function formatModelLabel(model) {
 }
 
 export function getSessionSidebarToggleLabel({
-  isMobileViewport = false,
-  isSidebarCollapsed = false,
-  isSidebarOpen = false,
 } = {}) {
-  if (isMobileViewport) {
-    return isSidebarOpen ? "收起对话" : "对话记录";
-  }
-
-  return isSidebarCollapsed ? "显示对话栏" : "隐藏对话栏";
+  return "对话记录";
 }
 
 export function shouldCloseSessionSidebar({
@@ -1562,11 +1555,17 @@ function renderSessionList() {
     totalCount: sessions.length,
   });
 
-  elements.sessionSidebarToggle.textContent = getSessionSidebarToggleLabel({
+  const sessionSidebarToggleLabel = getSessionSidebarToggleLabel({
     isMobileViewport,
     isSidebarCollapsed: state.isSessionSidebarCollapsed,
     isSidebarOpen: state.isSessionSidebarOpen,
   });
+
+  if (elements.sessionSidebarToggleLabel) {
+    elements.sessionSidebarToggleLabel.textContent = sessionSidebarToggleLabel;
+  } else {
+    elements.sessionSidebarToggle.textContent = sessionSidebarToggleLabel;
+  }
   elements.sessionSidebarToggle.setAttribute(
     "aria-expanded",
     isSidebarVisible ? "true" : "false",
@@ -2262,6 +2261,7 @@ async function initApp() {
     sessionSearchClearButton: document.getElementById("sessionSearchClearButton"),
     sessionSearchMeta: document.getElementById("sessionSearchMeta"),
     sessionSidebarToggle: document.getElementById("sessionSidebarToggle"),
+    sessionSidebarToggleLabel: document.getElementById("sessionSidebarToggleLabel"),
     clearAllSessionsButton: document.getElementById("clearAllSessionsButton"),
     userInput: document.getElementById("userInput"),
   };
