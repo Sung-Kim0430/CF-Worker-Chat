@@ -315,6 +315,43 @@ test("styles.css keeps the mobile shell compact without crowding the composer", 
   assert.match(styles, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.page-shell\s*\{[\s\S]*?width:\s*min\(100vw - 16px,\s*100%\)/i);
 });
 
+test("styles.css keeps the small-screen top bar compact instead of turning controls into stacked full-width blocks", () => {
+  const styles = fs.readFileSync("public/styles.css", "utf8");
+
+  assert.match(
+    styles,
+    /@media \(max-width:\s*820px\)\s*\{[\s\S]*?\.top-bar\s+\.ghost-button,\s*\.top-bar\s+\.primary-button\s*\{[\s\S]*?width:\s*auto/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?gap:\s*6px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.top-bar-controls\s*\{[\s\S]*?align-items:\s*center/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.model-picker\s*\{[\s\S]*?flex-direction:\s*row/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.model-picker\s*\{[\s\S]*?width:\s*auto/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.model-picker\s*\{[\s\S]*?padding:\s*3px 4px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.sidebar-toggle-button\s*\{[\s\S]*?gap:\s*6px/i,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.sidebar-toggle-label\s*\{[\s\S]*?font-size:\s*0\.8rem/i,
+  );
+});
+
 test("styles.css keeps the model catalog list switcher-like and compact", () => {
   const styles = fs.readFileSync("public/styles.css", "utf8");
 
