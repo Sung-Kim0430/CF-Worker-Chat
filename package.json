@@ -11,6 +11,6 @@
     "check:models": "node ./scripts/check-model-catalog.js"
   },
   "devDependencies": {
-    "wrangler": "^4.77.0"
+    "wrangler": "^4.114.0"
   }
 }
