@@ -1,25 +1,73 @@
 # Dependencies
 node_modules/
 .npm-cache/
+.npm/
+.pnpm-store/
 
 # Cloudflare / Wrangler
 .wrangler/
 .dev.vars
+.dev.vars.*
 .env
+.env.*
+!.env.example
+!.env.*.example
+!.dev.vars.example
+!.dev.vars.*.example
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
 
 # Test output
 coverage/
 .coverage/
+test-results/
+playwright-report/
+.playwright-cli/
+output/
+
+# Build / tool caches
+dist/
+build/
+.cache/
+.vite/
+.eslintcache
+__pycache__/
+*.py[cod]
 
 # OS / editor noise
 .DS_Store
 Thumbs.db
+._*
+*.swp
+*.swo
+*~
 .idea/
 .vscode/
 
 # Local worktrees
 .worktrees/
+
+# Local coding agents / assistants
+.codex/
+.agents/
+.claude/
+.cursor/
+.gemini/
+.opencode/
+.copilot/
+.cline/
+.roo/
+.windsurf/
+.continue/
+.aider*
+.superpowers/

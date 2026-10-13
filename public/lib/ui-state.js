@@ -54,6 +54,10 @@ export function getSessionStatus({
     return { tone: "idle", message: "已完成响应，可以继续追问或切换模型。" };
   }
 
+  if (phase === "stopped") {
+    return { tone: "idle", message: "已停止生成，已保留收到的内容，可以继续提问。" };
+  }
+
   if (phase === "interrupted" && hasPartialContent) {
     return { tone: "warning", message: "生成已中断，已保留部分内容。" };
   }

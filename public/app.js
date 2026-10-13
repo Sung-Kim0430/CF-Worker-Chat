@@ -1,5 +1,6 @@
 import {
   applyAssistantFailure,
+  applyAssistantStop,
   buildRequestHistory,
   consumeCompleteSseBlocks,
   consumeFinalSseBlock,
@@ -30,6 +31,8 @@ import {
   sanitizeManualSessionTitle,
   setActiveSessionId,
 } from "./lib/local-sessions.js";
+import { initAppearance } from "./lib/appearance.js";
+import { buildSessionExport } from "./lib/session-export.js";
 
 const state = {
   config: null,
@@ -64,6 +67,7 @@ const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
 let elements = null;
 let messageRenderQueued = false;
 let lastRenderedHistorySnapshot = [];
+let activeRequestController = null;
 
 export function formatModelLabel(model) {
   return `${model.label} · ${model.speedTag} · ${model.costTag}`;
@@ -1258,6 +1262,8 @@ function getMessageModelLabel(message) {
 }
 
 function getAssistantMessageStateLabel(message) {
+  if (message.stopped) return "已停止";
+
   if (message.streaming) {
     return "生成中";
   }
@@ -1463,6 +1469,7 @@ function renderModelCatalog() {
     modelPickerCopy.searchPlaceholder || "搜索模型或提供方";
   elements.modelSearchInput.value = state.modelCatalogQuery;
   elements.modelSearchInput.disabled = controlState.modelDisabled;
+  elements.modelCatalogCount.textContent = `${filteredModels.length} / ${allModels.length}`;
 
   elements.modelCatalogList.innerHTML = filteredModels.length
     ? filteredModels
@@ -1474,6 +1481,7 @@ function renderModelCatalog() {
               class="catalog-option${isActive ? " active" : ""}"
               type="button"
               data-model-id="${escapeHtml(model.id)}"
+              aria-pressed="${isActive}"
               ${controlState.modelDisabled ? "disabled" : ""}
             >
               <span class="catalog-option-title-row">
@@ -1481,6 +1489,12 @@ function renderModelCatalog() {
                 <small>${escapeHtml(model.provider || "Workers AI")}</small>
               </span>
               <span class="catalog-option-copy">${escapeHtml(model.description)}</span>
+              <span class="catalog-option-meta">
+                <span>${escapeHtml(model.contextWindow.toLocaleString("zh-CN"))} tokens 上下文</span>
+                ${model.supportsReasoning ? '<span>推理</span>' : ''}
+                ${model.requiresPaidAccess ? '<span class="paid-access-tag">付费访问</span>' : ''}
+                ${isActive ? '<span class="catalog-selected-tag">当前模型</span>' : ''}
+              </span>
             </button>
           `;
         })
@@ -1591,6 +1605,10 @@ function renderSessionOption(
           ···
         </button>
         <div class="session-action-popover">
+          <button class="session-inline-action" type="button" data-session-action="export"
+            data-session-id="${escapeHtml(session.id)}" ${sessionActionsDisabled || !session.history.length ? "disabled" : ""}>
+            导出 Markdown
+          </button>
           <button
             class="session-inline-action"
             type="button"
@@ -1813,7 +1831,12 @@ function renderComposer() {
   const controlState = getCurrentControlState();
 
   elements.sendButton.disabled = controlState.sendDisabled;
+  elements.sendButton.hidden = state.isSending;
+  elements.stopButton.hidden = !state.isSending;
   elements.userInput.disabled = controlState.inputDisabled;
+  const model = getSelectedModelMeta();
+  elements.composerModelLabel.textContent = model
+    ? `${model.label}${model.requiresPaidAccess ? " · 付费访问" : ""}` : "正在加载模型…";
 }
 
 async function streamAssistantReply(response, assistantMessage) {
@@ -1834,31 +1857,36 @@ async function streamAssistantReply(response, assistantMessage) {
   let buffer = "";
   let completed = false;
 
-  while (!completed) {
-    const { value, done } = await reader.read();
+  try {
+    while (!completed) {
+      const { value, done } = await reader.read();
 
-    if (done) {
-      break;
+      if (done) {
+        break;
+      }
+
+      const result = consumeCompleteSseBlocks(buffer + value, (text) => {
+        assistantMessage.content += text;
+        scheduleMessageRender();
+      });
+      buffer = result.buffer;
+      completed = result.done;
     }
 
-    const result = consumeCompleteSseBlocks(buffer + value, (text) => {
-      assistantMessage.content += text;
-      scheduleMessageRender();
-    });
-    buffer = result.buffer;
-    completed = result.done;
-  }
-
-  if (!completed) {
-    consumeFinalSseBlock(buffer, (text) => {
-      assistantMessage.content += text;
-      scheduleMessageRender();
-    });
+    if (!completed) {
+      consumeFinalSseBlock(buffer, (text) => {
+        assistantMessage.content += text;
+        scheduleMessageRender();
+      });
+    }
+  } finally {
+    // Stop reading after [DONE] or errors, including a user cancellation.
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 
   if (!assistantMessage.content.trim()) {
-    assistantMessage.content = "模型未返回可显示内容，请尝试换个问题或切换模型。";
-    renderMessages();
+    throw new Error("模型未返回可显示内容，请尝试换个问题或切换模型。");
   }
 }
 
@@ -1923,9 +1951,11 @@ async function sendMessage(messageText) {
   renderOperatorPanel();
   updateSessionStatus();
 
+  activeRequestController = new AbortController();
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
+      signal: activeRequestController.signal,
       headers: {
         "content-type": "application/json",
       },
@@ -1947,15 +1977,21 @@ async function sendMessage(messageText) {
     };
   } catch (error) {
     assistantMessage.streaming = false;
-    applyAssistantFailure(
-      assistantMessage,
-      error instanceof Error ? error.message : "请求未完成，请稍后重试。",
-    );
-    state.session = {
-      phase: "interrupted",
-      hasPartialContent: Boolean(assistantMessage.failureNote),
-    };
+    if (activeRequestController.signal.aborted) {
+      applyAssistantStop(assistantMessage);
+      state.session = { phase: "stopped" };
+    } else {
+      applyAssistantFailure(
+        assistantMessage,
+        error instanceof Error ? error.message : "请求未完成，请稍后重试。",
+      );
+      state.session = {
+        phase: "interrupted",
+        hasPartialContent: Boolean(assistantMessage.failureNote),
+      };
+    }
   } finally {
+    activeRequestController = null;
     state.isSending = false;
     assistantMessage.streaming = false;
     touchActiveSession({ updateTimestamp: true });
@@ -1990,11 +2026,28 @@ function setSelectedModel(modelId, { closeCatalog = false } = {}) {
   }
 
   renderOperatorPanel();
+  renderComposer();
   updateSessionStatus();
+}
+
+function exportLocalSession(sessionId) {
+  const session = state.sessionStore.sessions.find((item) => item.id === sessionId);
+  if (!session || state.isSending) return;
+  const exported = buildSessionExport(session);
+  const url = URL.createObjectURL(new Blob([exported.content], { type: "text/markdown;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = exported.filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  closeSessionActionMenu();
 }
 
 async function loadConfig() {
   const response = await fetch("/api/config", {
+    signal: AbortSignal.timeout(15000),
     headers: {
       accept: "application/json",
     },
@@ -2008,6 +2061,7 @@ async function loadConfig() {
 }
 
 function bindEvents() {
+  elements.stopButton.addEventListener("click", () => activeRequestController?.abort());
   elements.chatForm.addEventListener("submit", (event) => {
     event.preventDefault();
     void sendMessage(elements.userInput.value);
@@ -2145,6 +2199,7 @@ function bindEvents() {
       if (sessionAction === "rename") {
         startSessionRename(sessionId);
       }
+      if (sessionAction === "export") exportLocalSession(sessionId);
 
       if (sessionAction === "restore-auto-title") {
         restoreSessionTitle(sessionId);
@@ -2332,6 +2387,9 @@ async function initApp() {
     modelCatalogToggle: document.getElementById("modelCatalogToggle"),
     modelCatalogToggleLabel: document.getElementById("modelCatalogToggleLabel"),
     modelSearchInput: document.getElementById("modelSearchInput"),
+    modelCatalogCount: document.getElementById("modelCatalogCount"),
+    composerModelLabel: document.getElementById("composerModelLabel"),
+    stopButton: document.getElementById("stopButton"),
     sendButton: document.getElementById("sendButton"),
     chatWorkspace: document.getElementById("chatWorkspace"),
     newChatButton: document.getElementById("newChatButton"),
@@ -2348,6 +2406,12 @@ async function initApp() {
     userInput: document.getElementById("userInput"),
   };
 
+  initAppearance({
+    root: document.documentElement,
+    select: document.getElementById("themePreference"),
+    storage: getSafeLocalStorage(),
+    media: window.matchMedia("(prefers-color-scheme: dark)"),
+  });
   bindEvents();
   autoResizeTextarea();
   updateSessionStatus();

@@ -63,6 +63,8 @@ function normalizeMessage(message = {}) {
     normalized.error = Boolean(message.error);
   }
 
+  if (message.stopped) normalized.stopped = true;
+
   if (message.includeInHistory === false) {
     normalized.includeInHistory = false;
   }

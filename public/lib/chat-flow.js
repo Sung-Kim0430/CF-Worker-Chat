@@ -11,6 +11,14 @@ function extractTextFromPayload(payload) {
     throw new Error(message);
   }
 
+  if (payload.type === "response.failed") {
+    throw new Error(payload.response?.error?.message || "模型生成失败");
+  }
+
+  if (payload.type === "response.output_text.delta" && typeof payload.delta === "string") {
+    return payload.delta;
+  }
+
   if (typeof payload.response === "string") {
     return payload.response;
   }
@@ -49,16 +57,16 @@ function consumeSsePayload(data, onText) {
     return true;
   }
 
+  let payload;
   try {
-    const payload = JSON.parse(data);
-    const text = extractTextFromPayload(payload);
-
-    if (text) {
-      onText(text);
-    }
+    payload = JSON.parse(data);
   } catch {
     onText(data);
+    return false;
   }
+
+  const text = extractTextFromPayload(payload);
+  if (text) onText(text);
 
   return false;
 }
@@ -109,8 +117,16 @@ export function consumeFinalSseBlock(buffer, onText) {
 
 export function buildRequestHistory(history) {
   return history
-    .filter((item) => item.includeInHistory !== false)
+    .filter((item) => item.includeInHistory !== false && typeof item.content === "string" && item.content.trim())
     .map(({ role, content }) => ({ role, content }));
+}
+
+export function applyAssistantStop(message) {
+  message.streaming = false;
+  message.stopped = true;
+  message.includeInHistory = Boolean(message.content.trim());
+  if (!message.includeInHistory) message.content = "已停止生成。";
+  return message;
 }
 
 export function applyAssistantFailure(message, errorText) {

@@ -9,6 +9,7 @@ CF Worker Chat 的定位是一个**整洁、稳定、可维护的多模型 AI �
 - Workers AI overview: <https://developers.cloudflare.com/workers-ai/>
 - Workers AI model catalog: <https://developers.cloudflare.com/workers-ai/models/>
 - Workers AI pricing: <https://developers.cloudflare.com/workers-ai/platform/pricing/>
+- Model deprecations: <https://developers.cloudflare.com/changelog/post/2026-05-08-planned-model-deprecations/>
 
 如果 Cloudflare 新增了可用于对话的模型，应优先评估这些 **chat-capable** / text-generation 模型是否适合当前站点的聊天工作流。
 
@@ -23,6 +24,8 @@ CF Worker Chat 的定位是一个**整洁、稳定、可维护的多模型 AI �
    - `supportsStreaming`
    - `supportsFunctionCalling`
    - `supportsReasoning`
+   - `requiresPaidAccess`（付费计划或 AI Gateway 预付额度要求）
+   - `contextWindow`、`docsUrl` 和核对日期
 4. 维持首页**保持整洁**：
    - 首页只保留 4-5 个“常用模型”
    - 其余模型收纳到“更多模型”面板
@@ -42,6 +45,26 @@ npm run check:models
 - featured / catalog 数量
 - 当前收录的模型摘要
 - 一份固定的模型维护 checklist
+
+联网检查官方目录和仍受支持的变体：
+
+```bash
+npm run check:models -- --online
+npm run check:models -- --online --json
+```
+
+检查器会报告当前 registry 中未被官方目录或明确存活变体列表确认的 ID（`missingModelIds`），发现时以非零状态退出；网络失败和官方页面格式变化也会失败，不会伪报通过。`newTextGenerationModelIds` 只是待评估的文本生成模型，包含专用决策模型、审核模型、LoRA 与需要申请访问的模型，不能直接全部加入聊天白名单。
+
+## 2026-10-13 review
+
+当前共 24 个模型，5 个常用模型。默认 GLM-4.7-Flash 仍获官方支持。
+
+- 移除已弃用的 Gemma 3 12B 和 Kimi K2.5；Kimi 旧 ID 已由 Cloudflare 自动映射到更高价的 K2.6，本站恢复旧会话时回退到默认模型，保留历史内容，不自动选择付费替代模型。
+- 新增 Gemma 4 26B A4B、Qwen 3.8 27B、Kimi K2.6、Kimi K2.7 Code、GLM 5.2 / 5.3 / 5.3 Flash、DeepSeek V4 Flash / Pro。
+- GLM 5 系列、Kimi K2.6 / K2.7 Code、DeepSeek V4 要求付费访问，已标注；本站只调用文本 `messages` 与 `stream: true`，未开放图片或工具执行。
+- Llama 3.1 8B Fast 的详情页目前返回目录页、主目录也未列出该 ID；弃用公告明确将它列为仍活动的变体，所以保留并在在线检查时报告这个例外。未来继续核对，不能把「缺少页面」直接当作「已下线」。
+- 模型上下文窗口是官方规格；本站请求仍最多发送最近 12 条历史消息，单条最多 12,000 字符。
+- 所有新增型号都核对过官方 streaming 示例及 `messages` 格式。目录检查不证明账号访问权限或真实推理成功，发布前应使用 `npm run dev:remote` 实际测试。
 
 ## Featured vs. full catalog policy
 

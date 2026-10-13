@@ -3,7 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>CF Worker Chat</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      // Apply appearance before stylesheet loading to avoid a light flash.
+      (() => {
+        let preference = "system";
+        try { preference = localStorage.getItem("cf-worker-chat.theme.v1") || "system"; } catch {}
+        document.documentElement.dataset.theme = preference === "light" || preference === "dark"
+          ? preference : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      })();
+    </script>
     <link rel="stylesheet" href="/styles.css" />
     <link
       rel="stylesheet"
@@ -85,9 +96,12 @@
             </div>
           </div>
 
-          <section id="modelCatalogPanel" class="floating-panel model-catalog-panel" hidden>
+          <section id="modelCatalogPanel" class="floating-panel model-catalog-panel" aria-label="模型目录" hidden>
             <div id="modelCatalogSurface" class="model-catalog-surface">
-              <label class="field-label" for="modelSearchInput">搜索模型</label>
+              <div class="catalog-heading">
+                <label class="field-label" for="modelSearchInput">搜索模型</label>
+                <span id="modelCatalogCount" class="catalog-count" aria-live="polite"></span>
+              </div>
               <input
                 id="modelSearchInput"
                 class="model-search-input"
@@ -96,6 +110,7 @@
                 autocomplete="off"
               />
               <div id="modelCatalogList" class="model-catalog-list"></div>
+              <p class="catalog-footnote">上下文为模型规格；本站携带最近 12 条历史消息。标有「付费访问」的模型需要 Workers 付费计划或 AI Gateway 预付额度。</p>
             </div>
           </section>
         </div>
@@ -168,6 +183,14 @@
           </div>
 
           <div class="session-sidebar-footer">
+            <div class="appearance-control">
+              <label for="themePreference">外观</label>
+              <select id="themePreference" class="theme-select" aria-label="外观主题">
+                <option value="system">跟随系统</option>
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
+              </select>
+            </div>
             <button
               id="clearAllSessionsButton"
               class="ghost-button compact-button sidebar-secondary-action danger-button"
@@ -188,7 +211,9 @@
               <div id="composerInputShell" class="composer-input-shell">
                 <textarea
                   id="userInput"
+                  aria-label="输入消息"
                   rows="1"
+                  maxlength="12000"
                   placeholder="输入消息"
                 ></textarea>
                 <button
@@ -198,6 +223,11 @@
                 >
                   发送
                 </button>
+                <button id="stopButton" class="ghost-button composer-stop-button" type="button" hidden>停止生成</button>
+              </div>
+              <div class="composer-footer">
+                <span id="composerModelLabel" class="composer-model-label"></span>
+                <span class="composer-key-hint">Enter 发送 · Shift+Enter 换行</span>
               </div>
             </form>
           </div>

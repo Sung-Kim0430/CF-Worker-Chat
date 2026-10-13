@@ -33,7 +33,7 @@ test("check-model-catalog script returns a JSON registry summary", () => {
     true,
   );
   assert.equal(
-    payload.models.some((model) => model.id === "@cf/google/gemma-3-12b-it"),
+    payload.models.some((model) => model.id === "@cf/google/gemma-4-26b-a4b-it"),
     true,
   );
   assert.equal(
@@ -49,7 +49,7 @@ test("check-model-catalog script returns a JSON registry summary", () => {
     true,
   );
   assert.equal(
-    payload.models.some((model) => model.id === "@cf/moonshotai/kimi-k2.5"),
+    payload.models.some((model) => model.id === "@cf/moonshotai/kimi-k2.6"),
     true,
   );
   assert.equal(

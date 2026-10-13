@@ -11,6 +11,7 @@ import {
   getSessionPreviewText,
   renameSession,
   restoreAutoSessionTitle,
+  serializeSessionStore,
 } from "../public/lib/local-sessions.js";
 
 test("buildInitialSessionStore restores multiple local sessions and the active session id", () => {
@@ -52,6 +53,15 @@ test("buildInitialSessionStore restores multiple local sessions and the active s
   assert.deepEqual(store.sessions[0].expandedCodeBlocks, {
     "1710000003000:0": true,
   });
+});
+
+test("restoring deprecated model sessions preserves conversations and stopped turn state", () => {
+  const history = [{ role: "assistant", content: "保留部分回答", stopped: true, streaming: false }];
+  const saved = serializeSessionStore({ activeSessionId: "old", sessions: [{ id: "old", title: "旧模型对话", modelId: "@cf/moonshotai/kimi-k2.5", history }] });
+  const restored = buildInitialSessionStore({ defaultModelId: "@cf/zai-org/glm-4.7-flash", availableModelIds: ["@cf/zai-org/glm-4.7-flash", "@cf/moonshotai/kimi-k2.6"], storageValue: saved });
+  assert.equal(restored.sessions[0].modelId, "@cf/zai-org/glm-4.7-flash");
+  assert.equal(restored.sessions[0].history[0].content, "保留部分回答");
+  assert.equal(restored.sessions[0].history[0].stopped, true);
 });
 
 test("buildInitialSessionStore falls back to the default model when a saved model is unavailable", () => {

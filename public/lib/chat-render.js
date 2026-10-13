@@ -6,6 +6,7 @@ function normalizeMessageSnapshot(message = {}) {
     modelLabel: message.modelLabel || "",
     createdAt: Number(message.createdAt || 0),
     streaming: Boolean(message.streaming),
+    stopped: Boolean(message.stopped),
     error: Boolean(message.error),
     failureNote: message.failureNote || "",
   };
@@ -19,6 +20,7 @@ function isSameMessage(left, right) {
     left.modelLabel === right.modelLabel &&
     left.createdAt === right.createdAt &&
     left.streaming === right.streaming &&
+    left.stopped === right.stopped &&
     left.error === right.error &&
     left.failureNote === right.failureNote
   );

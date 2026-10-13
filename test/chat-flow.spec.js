@@ -5,6 +5,7 @@ import {
   consumeFinalSseBlock,
   buildRequestHistory,
   applyAssistantFailure,
+  applyAssistantStop,
 } from "../public/lib/chat-flow.js";
 
 test("consumeCompleteSseBlocks emits complete SSE payloads and preserves trailing buffer", () => {
@@ -19,6 +20,54 @@ test("consumeCompleteSseBlocks emits complete SSE payloads and preserves trailin
   assert.equal(result.done, false);
   assert.equal(result.buffer, 'data: {"response":"tail"}');
   assert.deepEqual(events, ["hello", " world"]);
+});
+
+test("stopping a reply retains partial text and omits empty stop notices from context", () => {
+  const partial = { role: "assistant", content: "partial" };
+  applyAssistantStop(partial);
+  assert.equal(partial.content, "partial");
+  assert.equal(partial.stopped, true);
+  assert.equal(partial.streaming, false);
+  assert.equal(partial.includeInHistory, true);
+  const empty = { role: "assistant", content: "" };
+  applyAssistantStop(empty);
+  assert.equal(empty.includeInHistory, false);
+  assert.deepEqual(buildRequestHistory([partial, empty]), [{ role: "assistant", content: "partial" }]);
+});
+
+test("request history excludes empty pending replies restored after a page reload", () => {
+  assert.deepEqual(buildRequestHistory([
+    { role: "user", content: "hello" },
+    { role: "assistant", content: "" },
+    { role: "assistant", content: "  " },
+  ]), [{ role: "user", content: "hello" }]);
+});
+
+test("SSE model errors propagate without entering the visible answer", () => {
+  const events = [];
+  assert.throws(() => consumeCompleteSseBlocks(
+    'data: {"error":{"message":"quota exceeded"}}\n\n',
+    (text) => events.push(text),
+  ), /quota exceeded/);
+  assert.deepEqual(events, []);
+});
+
+test("Responses API output deltas are accepted without exposing reasoning deltas", () => {
+  const events = [];
+  const result = consumeCompleteSseBlocks(
+    'data: {"type":"response.reasoning_text.delta","delta":"private"}\n\n' +
+    'data: {"type":"response.output_text.delta","delta":"answer"}\n\n' +
+    'data: [DONE]\n\n', (text) => events.push(text),
+  );
+  assert.deepEqual(events, ["answer"]);
+  assert.equal(result.done, true);
+});
+
+test("Responses API failure events propagate the error", () => {
+  assert.throws(() => consumeFinalSseBlock(
+    'data: {"type":"response.failed","response":{"error":{"message":"inference failed"}}}',
+    () => {},
+  ), /inference failed/);
 });
 
 test("consumeFinalSseBlock preserves trailing SSE data without a blank terminator", () => {

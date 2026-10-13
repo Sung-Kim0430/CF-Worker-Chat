@@ -46,7 +46,7 @@ test("model catalog keeps more models available than the featured picker", () =>
     true,
   );
   assert.equal(
-    catalog.some((model) => model.id === "@cf/google/gemma-3-12b-it"),
+    catalog.some((model) => model.id === "@cf/google/gemma-4-26b-a4b-it"),
     true,
   );
   assert.equal(
@@ -62,7 +62,7 @@ test("model catalog keeps more models available than the featured picker", () =>
     true,
   );
   assert.equal(
-    catalog.some((model) => model.id === "@cf/moonshotai/kimi-k2.5"),
+    catalog.some((model) => model.id === "@cf/moonshotai/kimi-k2.6"),
     true,
   );
   assert.equal(
@@ -81,4 +81,23 @@ test("model catalog keeps more models available than the featured picker", () =>
     catalog.some((model) => model.id === "@cf/meta/llama-3.2-1b-instruct"),
     true,
   );
+});
+
+test("catalog includes verified current chat models and rejects deprecated identifiers", () => {
+  for (const id of [
+    "@cf/zai-org/glm-5.2", "@cf/zai-org/glm-5.3", "@cf/zai-org/glm-5.3-flash",
+    "@cf/moonshotai/kimi-k2.7-code", "@cf/deepseek-ai/deepseek-v4-flash-0731",
+    "@cf/deepseek-ai/deepseek-v4-pro-0813", "@cf/qwen/qwen3.8-27b",
+  ]) {
+    const model = getModelById(id);
+    assert.ok(model, id);
+    assert.equal(model.inputMode, "messages");
+    assert.equal(model.supportsStreaming, true);
+    assert.ok(model.contextWindow >= 262144);
+  }
+  assert.equal(getModelById("@cf/google/gemma-3-12b-it"), null);
+  assert.equal(getModelById("@cf/moonshotai/kimi-k2.5"), null);
+  assert.equal(getModelById("@cf/zai-org/glm-5.3")?.requiresPaidAccess, true);
+  assert.equal(getModelById(DEFAULT_MODEL)?.requiresPaidAccess, false);
+  assert.ok(getModelById("@cf/meta/llama-3.1-8b-instruct-fast"));
 });
